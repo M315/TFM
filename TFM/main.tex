@@ -1,0 +1,83 @@
+%=============================================================================
+%
+%	TFM
+%
+%=============================================================================
+
+
+
+%=============================================================================
+%	Packages
+%=============================================================================
+
+\documentclass[11pt, a4paper]{article}		% document format
+\usepackage{graphicx}						% package to insert graphics
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}					% this enables all unicode characters
+\usepackage{amsmath, amsfonts, amssymb} 	% maths packages
+\usepackage{amsthm}							% theorem styles
+\usepackage{fancyhdr}						% package for headers, foot and margin notes
+\usepackage{enumitem}						% allows to change the enumeration format in line
+
+
+
+%=============================================================================
+%	Commands
+%=============================================================================
+
+\providecommand{\U}[1]{\protect\rule{.1in}{.1in}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\E}{\mathcal{E}}
+\newcommand{\R}{\mathbb{R}}
+
+
+
+%=============================================================================
+%	Environment
+%=============================================================================
+
+\theoremstyle{plain}
+\newtheorem{exercise}{Exercise}
+\newtheorem{algorithm*}{Algorithm}
+
+\theoremstyle{definition}
+\newtheorem{solution}{Solution}[exercise]
+\renewcommand*{\thesolution}{\theexercise.\alph{solution}}	% Make solution instances enumerate with number of exercise and letter of solution
+
+
+
+
+%============================================================================
+%	Pagestyle
+%=============================================================================
+
+\pagestyle{fancy}		% As we use the fancyhdr pkg need the fancy pagestyle, for more information:
+						% http://tug.ctan.org/tex-archive/macros/latex/contrib/fancyhdr/fancyhdr.pdf
+
+
+%\topmargin 0 pt
+%\oddsidemargin 0 pt
+%\evensidemargin 0 pt
+%\marginparwidth 0 pt
+
+
+%\textheight 25cm
+%\textwidth 400 pt
+%\advance\textheight by \topskip
+
+%\parindent 0pt
+%\parskip 5mm plus 1mm minus 1mm
+
+%\fancyhead[C]{Report I}					                % Central header
+\fancyhead[L]{TFM}   										% Left header
+\fancyhead[R]{Marc Jovani Bertran}						    % Right header
+
+
+
+%=============================================================================
+%	Document
+%=============================================================================
+
+\begin{document}
+	\include{1_introduction}
+\end{document}
