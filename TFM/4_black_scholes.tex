@@ -1,0 +1,242 @@
+% ----------------------------------
+%   - Derivation of the Black-Scholes PDE
+%       - Assumptions
+%       ? Rigorous construction of market bla bla
+%       - From SDE to PDE
+%   - Solving the Black-Scholes PDE (BS Formula)
+% ----------------------------------
+
+\section{Black-Scholes}
+
+Black-Scholes is a mathematical model for pricing options.
+Although many other models have been developed since,
+the Black-Scholes model remains as the most important model in option pricing,
+as in many cases options in markets are quoted using the Black-Scholes formula.
+
+A derivative is a financial instrument whose payments are derived from the price of an other asset, called the underlying asset.
+Derivatives are widely used in finance,
+whether to hedge financial risk, this is to protect against adverse price movements,
+or to bet on specific views, especially when it's difficult to take a position in the underlying asset.
+So being able to price them and justify the price is key for the market to function.
+
+\subsection{Replication and arbitrage}
+
+One of the most important concepts in modern finance is the so called \textit{law of one price}.
+The idea is that if two financial assets have exactly the same payoffs in all possible scenarios,
+then they should have the same price.
+
+This is a linked to the concept of \textit{arbitrage},
+informally we say that arbitrage is the opportunity to make a riskless profit.
+For example, if two assets that have exactly the same payoffs in all possible scenarios,
+but don't follow the law of one price,
+one can buy the cheaper one and sell the more expensive one,
+gaining and instant profit and compensating the payoffs of the sold asset using the payoffs of bought one,
+which match exactly.
+
+We will work under the assumption that we are in operating in a market with no arbitrage,
+this assumption is technically known as \textit{The First Fundamental Theorem of Asset Pricing},
+and a key part of the \textit{Efficient Market Hypothesis}.
+Under this assumption, we can price any derivative by creating a replicating portfolio,
+this is a set of assets that has exactly the same payoffs as the derivative in all possible scenarios.
+
+There are two main ways of creating a replicating portfolio:
+\begin{itemize}
+    \item \textbf{Static replication} refers to an replicating portfolio that is created at the beginning and held as is until maturity. 
+    \item \textbf{Dynamic replication} refers to a replicating portfolio that requires a continuous change of its composition over time.
+\end{itemize}
+
+For a further discussion on replication, and its applications in finance, we recommend the book \cite{derman_vol_smile}.
+
+% Weak and strong replication?
+
+Will show two examples of static replication from \cite{steele_stochastic}
+that will be useful to understand the Black-Scholes model.
+
+\subsubsection{Example: Forward contract}
+
+Assume that there is an agent that borrows and lends money at a continuously compounded rate $r$, known as the \textbf{risk-free rate}.
+This means that if we borrow $1 \$$ at time $t = 0$,
+we will have to pay $e^{rT} \$$ at time $t = T$.
+
+A forward contract gives the holder the obligation to buy an asset at a fixed price $K$ at a fixed date $T$.
+
+To price this contract imagine we are at time $t$ and the current price of an asset is $S$,
+we want to buy a forward contract with maturity $T$ and fixed price $K$.
+
+We have two options, we can buy the contract at time $t$ for a price of $F$ and at time $T$ pay $K$ to get the asset.
+Alternatively we can buy the asset for $S$ and borrow $e^{-r(T - t)}K$ at time $t$, so at time $T$ we will pay $K = e^{r(T - t)} e^{-r(T - t)} K$ while having the asset.
+Both options have the same cashflow at time $T$, pay $K$ and own the asset,
+so either we have
+\begin{equation*}
+    F = S - e^{-r(T - t)} K,
+\end{equation*}
+or there is an arbitrage opportunity.
+
+We have found the price of the forward contract by replicating its cashflows, using the underlying assed and the risk-free rate,
+plus arguing that there should not be an arbitrage opportunity.
+
+\subsubsection{Example: Put-Call parity}
+
+\begin{definition}[European call option]
+    An \textbf{European call option} is a financial contract that gives the holder the right,
+    but not the obligation,
+    to \textbf{buy} an asset at a fixed price (the strike price) at a fixed date (the maturity date).
+
+    The payoff of an European call option at maturity $T$ is given by:
+    \begin{equation}
+        C_T = \max(S_T - K, 0),
+    \end{equation}
+    where $S_T$ is the price of the underlying asset at maturity and $K$ is the strike price.
+
+    \begin{figure}[h] \label{fig:call_payoff}
+        \centering
+        \begin{tikzpicture}[scale=1.0, thick]
+            % Axis
+            \draw[->] (0,0) -- (7,0) node[anchor=north] {$S_T$};
+            \draw[->] (0,-1) -- (0,4) node[anchor=east] {$C_T$};
+        
+            % Payoff line
+            \draw[blue, thick, domain=0:3] plot(\x, {0});
+            \draw[blue, thick, domain=3:6] plot(\x, {\x - 3});
+        
+            % Labels
+            \node at (3,-0.3) {$K$};
+            \node at (-0.3,0) {0};
+            % \node at (-0.8,2) {$S_T - K$};
+        
+        \end{tikzpicture}
+        \caption{Payoff of a European call option}
+    \end{figure}
+\end{definition}
+
+\begin{definition}[European put option]
+    An \textbf{European put option} is a financial contract that gives the holder the right,
+    but not the obligation,
+    to \textbf{sell} an asset at a fixed price (the strike price) at a fixed date (the maturity date).
+
+    The payoff of an European put option at maturity $T$ is given by:
+    \begin{equation}
+        P_T = \max(K - S_T, 0),
+    \end{equation}
+    where $S_T$ is the price of the underlying asset at maturity and $K$ is the strike price.
+
+    \begin{figure}[h] \label{fig:put_payoff}
+        \centering
+        \begin{tikzpicture}[scale=1.0, thick]
+            % Axis
+            \draw[->] (0,0) -- (7,0) node[anchor=north] {$S_T$};
+            \draw[->] (0,-1) -- (0,4) node[anchor=east] {$C_T$};
+        
+            % Payoff line
+            \draw[blue, thick, domain=0:3] plot(\x, {3 - \x});
+            \draw[blue, thick, domain=3:6] plot(\x, {0});
+        
+            % Labels
+            \node at (3,-0.3) {$K$};
+            \node at (-0.3,0) {0};
+            % \node at (-0.8,2) {$S_T - K$};
+        
+        \end{tikzpicture}
+        \caption{Payoff of a European put option}
+    \end{figure}
+\end{definition}
+
+Now consider a portfolio where we buy a call option and sell a put option with same strike $K$ and maturity $T$,
+the payoff of such portfolio at time $T$ will be exactly $S_T - K$.
+So we are essentilly reciving the asset and paying $K$ at time $T$,
+as we have seen this is the payoff of a forward contract, which means that at time $t$ the price of our portfolio must be equal to the price of a forward of the asset,
+\begin{equation} \label{eq:put_call_parity}
+    C_t - P_t = F_t = S_t - e^{-r(T - t)} K,
+\end{equation}
+this formula is called \textit{put-call parity} and illustrates the relationship between the price of a call and a put option.
+
+
+\subsection{The Black-Scholes model}\label{subsec:black_scholes_model}
+
+The Black-Scholes model is a mathematical model for pricing options,
+that is based on replicating the payoffs of the option dynamically using the underlying asset and a risk-free rate bond.
+
+Like before we assume that the market is arbitrage-free,
+and that there is a constant risk-free rate $r$.
+As the model is based on dynamic replication,
+we also need to assume that we can rebalance our replicating portfolio continuously,
+i.e. we can buy and sell any amount of the underlying asset and the risk-free rate bond instantaneously at any time.
+
+Let $S_t$ be the price of the underlying asset at time $t$ and $\beta_t$ be the price of the risk-free rate bond at time $t$.
+The dynamics of this two assets are given by the following stochastic differential equations (SDEs):
+\begin{equation*}
+    dS_t = \mu S_t dt + \sigma S_t dW_t,
+    \qquad
+    d\beta_t = r \beta_t dt.
+\end{equation*}
+
+To construct the replicating portfolio.
+Let $a_t$ be the amount of the underlying asset in our replicating portfolio and $b_t$ be the amount of the risk-free rate bond in our replicating portfolio.
+Then the value of the portfolio at any time $t$ is given by:
+\begin{equation*}
+    V_t = a_t S_t + b_t \beta_t.
+\end{equation*}
+
+We need this portfolio to have the same payoff as the option at time $T$, so
+\begin{equation*}
+    V_T = \max{S_T - K, 0}.
+\end{equation*}
+
+As the portfolio is dynamically replicating the option,
+the cashflow of the portfolio must match the ones of the option,
+these are the payoff as seen before, and the initial payment,
+so no cash must came in or out of the portfolio at any time between $t$ and $T$.
+This means that the portfolio must be \textit{self-financing},
+so the rebalanced must come from selling the underlying asset and buying the bond, or vice versa.
+This is expressed mathematically as
+\begin{equation}\label{eq:self_financing}
+    dV_t = a_t dS_t + b_t d\beta_t,
+\end{equation}
+which can be extended to
+\begin{equation*}
+    dV_t = \left( a_t \mu S_t + b_t r \beta_t \right) dt + a_t \sigma S_t dW_t.
+\end{equation*}
+
+Now as the value of the replicanting portfolio $V_t$ should be equal to the value of the option at any time $t$,
+we assume that this can be expressed by a function $f(t, S_t)$,
+depending only on the time $t$ and the price of the underlying asset $S_t$.
+Thus applying Ito's formula we have that
+\begin{equation*}
+    dV_t =
+        \left( \frac{\partial f}{\partial t} + \frac{\partial f}{\partial S} \mu S_t + \frac{1}{2} \frac{\partial^2 f}{\partial S^2} \sigma^2 S_t^2 \right) dt
+        + \frac{\partial f}{\partial S} \sigma S_t dW_t,
+\end{equation*}
+matching the two expressions for $dV_t$ we have that
+\begin{equation*}
+    a_t = \frac{\partial f}{\partial S},
+\end{equation*}
+and 
+\begin{equation*}
+    b_t =
+        \frac{1}{r \beta_t}
+        \left( \frac{\partial f}{\partial t} + \frac{1}{2} \frac{\partial^2 f}{\partial S^2} \sigma^2 S_t^2 \right)
+\end{equation*}
+as $V_t$ is the value of the replicating porfolio and the option at time $t$,
+we have that
+\begin{equation*}
+    f(t, S_t) = V_t = a_t S_t + b_t \beta_t,
+\end{equation*}
+using the values of $a_t$ and $b_t$ from above,
+\begin{equation*}
+    f(t, S_t) =
+        \frac{\partial f}{\partial S} S_t 
+        + \frac{1}{r} \left( \frac{\partial f}{\partial t} + \frac{1}{2} \frac{\partial^2 f}{\partial S^2} \sigma^2 S_t^2 \right),
+\end{equation*}
+that can be rearranged to
+\begin{equation}\label{eq:bs_pde}
+    \frac{\partial f}{\partial t} =
+        r f(t, S_t)
+        - r \frac{\partial f}{\partial S} S_t 
+        - \frac{1}{2} \frac{\partial^2 f}{\partial S^2} \sigma^2 S_t^2,
+\end{equation}
+with terminal condition
+\begin{equation*}
+    V_T = f(T, S_T) = \max(S_T - K, 0),
+\end{equation*}
+which is the \textbf{Black-Scholes PDE}.
+

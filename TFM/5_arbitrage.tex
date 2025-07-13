@@ -1,0 +1,130 @@
+\section{Arbitrage theory}\label{sec:arbitrage}
+
+We can generalize the approach used to derive the Black-Scholes PDE for a more general products
+Thus in this section will try to give a general framework to derive equations to price a \textit{contingent claim}.
+
+\begin{definition}[Market]\label{def:market}
+    A market is a set of $n + 1$ assets $S_0, S_1, \dots, S_n$,
+    where the price of $S_0$ is given by
+    \begin{equation*}
+        \frac{dS_0(t)}{S_0} = r(S_0(t), t) dt,
+    \end{equation*}
+    and the prices of the other assets are given by
+    \begin{equation*}
+        dS_i(t) = \mu(S_i(t), t) dt + \sigma_i(S_i(t), t)^\intercal dW(t),
+    \end{equation*}
+    where $W(t)$ is a $k$-dimensional Brownian motion.
+\end{definition}
+
+\begin{definition}[Portfolio]\label{def:portoflio}
+    A portfolio in the market $\{ S_i(t) \}$ is an $n + 1$ dimensional $\F_t^{(k)}$-adapted stochastic process
+    \begin{equation*}
+        \theta(t) = (\theta_0(t), \theta_1(t), \dots, \theta_n(t)),
+    \end{equation*}
+    an its value at time $t$ is given by
+    \begin{equation*}
+        V(t) = \sum_{i = 0}^n \theta_i(t) S_i(t).
+    \end{equation*}
+\end{definition}
+
+Note that as a portfolio $\theta(t)$ is an adapted process it doesn't use future information,
+so it is  a generalization on what in reality would be to rebalance ones investments in the market at time $t$.
+
+We can generalize the self-financing condition presented in \eqref{eq:self_financing} as,
+\begin{equation}\label{eq:self_financing_portfolio}
+    V(t) = V(0) + \int_0^t \theta(u) dS(u),
+\end{equation}
+in differential form
+\begin{equation}\label{eq:self_financing_portfolio_diff}
+    dV(t) = \theta(u) dS(t).
+\end{equation}
+
+A contingent claim is a financial instrument whose payoff depends on the outcome of uncertain future events,
+for example an European option.
+As our market consist of assets that are descried as stochastic processes,
+an European contingent claim paying at time $T$ is a function $f(S(T), T)$ depending on these assets,
+which is a random variable as $S(T)$ is a random vector of the values of the assets at time $T$. 
+
+\subsection{PDE method}\label{subsec:pde_method}
+
+Consider an European contingent claim with payoff $f(S(T))$,
+similar to what we did in section \ref{subsec:black_scholes_model},
+we want to construct a replicating portfolio $V(S(t), t)$ that has the same payoff as the contingent claim at time $T$.
+Thus using the Ito formula \eqref{eq:ndim_ito_formula} we have
+\begin{equation*}
+\begin{aligned}
+    dV(S(t), t)
+        & = \frac{\partial V}{\partial t} dt
+            + \sum_{i = 0}^n \frac{\partial V}{\partial S_i} dS_i(t)
+            + \frac{1}{2}  \sum_{i,j} \frac{\partial V^2}{\partial S_i \partial S_j} dS_i(t) dS_j(t) \\
+        & = \sum_{i = 0}^n \frac{\partial V}{\partial S_i} dS_i(t)
+            + \left( \frac{\partial V}{\partial t} + \frac{1}{2}  \sum_{i,j} \frac{\partial V^2}{\partial S_i \partial S_j} \sigma_i(S(t), t)^\intercal \sigma_j(S(t), t) \right) dt,
+\end{aligned}
+\end{equation*}
+imposing the self-financing condition \eqref{eq:self_financing_portfolio_diff} we find that
+\begin{equation}\label{eq:replicating_portfolio_pde_1}
+    \theta_i(t) = \frac{\partial V}{\partial S_i}, \quad \forall i = 0, \dots, n,
+\end{equation}
+and 
+\begin{equation}\label{eq:replicating_portfolio_pde_2}
+    \frac{\partial V}{\partial t} + \frac{1}{2}  \sum_{i,j} \frac{\partial V^2}{\partial S_i \partial S_j} \sigma_i(S(t), t)^\intercal \sigma_j(S(t), t) = 0.
+\end{equation}
+Also using $V(S(t), t) = \theta(t) S(t)$ in \eqref{eq:replicating_portfolio_pde_1} we get
+\begin{equation}\label{eq:replicating_portfolio_pde_3}
+    V(S(t), t) = \sum_{i = 0}^n \frac{\partial V}{\partial S_i} S_i.
+\end{equation}
+The equations \eqref{eq:replicating_portfolio_pde_2} and \eqref{eq:replicating_portfolio_pde_3} describe the PDE for the price of the contingent claim,
+using as boundary condition the payoff at time $T$
+\begin{equation*}
+    V(S(T), T) = f(S(T)).
+\end{equation*}
+
+As in Black-Scholes model,
+$\mu$ does not explicitly appear in the PDE,
+its only present implicitly in the prices $S(t)$ of the assets.
+
+\subsection{Martingale method}\label{subsec:martingale_method}
+
+The martingale method is an alternative framework to the PDE method,
+that allows to price contingent claims in a more flexible way.
+
+We will use \cite{bjork_arbitrage} as a reference for this section,
+we start with a couple of definitions related with the concept of market and portfolio defined previously.
+\begin{definition}[Attainable process]
+    We say a price process $V(t)$ is \textit{attainable} if there exists a self-financing portfolio $\theta(t)$ such that $V(t) = \theta(t) S(t)$.
+\end{definition}
+
+The attainable process is a formalization of the dynamic replicating portfolio idea.
+An other restriction on the portfolios we are going to consider is the following,
+\begin{definition}[Admissible portfolio]
+    A portfolio $\theta(t)$ is called \textit{admissible} if exists $\alpha > 0$ such that
+    \begin{equation*}
+        \int^t_0 \theta(t) dS(t) \geq -\alpha, \quad \forall t \in [0, T].
+    \end{equation*}
+\end{definition}
+In real life we can interpret this condition as a limit on the amount the portfolio can lose or borrow,
+as bank, clearing house or counterparty will not allow such risks and would force to cancel the deal.
+Technically also allow to cancel out some other undesirable strategies that would prevent some key theorems to hold,
+see \cite{steele_stochastic} sections 14.5 and 14.6 for more details on such strategies.
+
+Now we will formalize the idea of arbitrage in a market.
+\begin{definition}[Arbitrage]
+    A self-financing portfolio $\theta(t)$ is an \textit{arbitrage} if one of the following conditions hold for time $t$:
+    \begin{enumerate}
+        \item $\theta(0) S(0) < 0$ and $P(\theta(t) S(t) \geq 0) = 1$,
+        \item $\theta(0) S(0) = 0$ and $P(\theta(t) S(t) \geq 0) = 1$ and $P(\theta(t) S(t) > 0) > 0$,
+    \end{enumerate}
+\end{definition}
+
+Consider that the \textit{risk-free} asset $S_0$ has a constant price of $1$, i.e. the \textit{risk-free} rate is $r(S(t), t) \equiv 0$.
+Under this assumption we introduce the \textit{risk-neutral measure} $\Q$ as,
+\begin{definition}
+    A probability measure $\Q$ on $\F_T$ is called a \textit{risk-neutral measure} (also known as \textit{equivalent martingale measure}) if
+    \begin{itemize}
+        \item $\Q$ is equivalent to $P$ on $\F_T$.
+        \item All price process in the market $S_0, S_1, \dots, S_n$ are martingales under $\Q$ on the time interval $[0, T]$.
+    \end{itemize}
+\end{definition}
+We refer to $P$ as the "real" probability measure and reflects the true probability of the price processes,
+whereas $\Q$ is a probability measure under which the expected price of any asset is equal to the current one regardless of their risk (volatility).
+

@@ -13,12 +13,26 @@
 \documentclass[11pt, a4paper]{article}		% document format
 \usepackage{graphicx}						% package to insert graphics
 \usepackage[english]{babel}
-\usepackage[utf8]{inputenc}					% this enables all unicode characters
-\usepackage{amsmath, amsfonts, amssymb} 	% maths packages
+\usepackage[utf8]{inputenc}			% this enables all unicode characters
+\usepackage{
+  amsmath,
+  amsfonts,
+  amssymb
+} 	                            % maths packages
+\usepackage{dsfont}             % extend math symbols
 \usepackage{amsthm}							% theorem styles
 \usepackage{fancyhdr}						% package for headers, foot and margin notes
 \usepackage{enumitem}						% allows to change the enumeration format in line
-
+\usepackage{tikz}               % package for drawing graphs
+\usepackage[
+  top=2cm,
+  bottom=2cm,
+  left=3cm,
+  right=3cm,
+  headheight=17pt, % as per the warning by fancyhdr
+  includehead,includefoot,
+  heightrounded, % to avoid spurious underfull messages
+]{geometry}
 
 
 %=============================================================================
@@ -27,8 +41,11 @@
 
 \providecommand{\U}[1]{\protect\rule{.1in}{.1in}}
 \newcommand{\N}{\mathbb{N}}
-\newcommand{\E}{\mathcal{E}}
 \newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\1}{\mathds{1}}
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\Q}{\mathcal{Q}}
 
 
 
@@ -44,7 +61,12 @@
 \newtheorem{solution}{Solution}[exercise]
 \renewcommand*{\thesolution}{\theexercise.\alph{solution}}	% Make solution instances enumerate with number of exercise and letter of solution
 
+\newtheorem{theorem}{Theorem}[section]
 
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+
+\newtheorem{lemma}[theorem]{Lemma}
 
 
 %============================================================================
@@ -79,5 +101,12 @@
 %=============================================================================
 
 \begin{document}
-	\include{1_introduction}
+	% \include{1_introduction}
+	\include{2_preliminaries}
+	\include{3_ito_and_sde}
+	\include{4_black_scholes}
+  \include{5_arbitrage}
+  \include{6_calibration}
+  \bibliographystyle{plain}
+  \bibliography{references}
 \end{document}

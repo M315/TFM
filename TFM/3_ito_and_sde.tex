@@ -1,0 +1,204 @@
+% ----------------------------------
+%   - Ito's lemma (formula)
+%       ? Some heuristics
+%       ? Justification of existence the Ito integral
+%   - Stochastic differential equations (SDEs
+% ----------------------------------
+
+\section{Stochastic calculus}
+
+We would model the dynamics of the value of a financial asset,
+an ordinary differential equation of the form
+\begin{equation*}
+    \frac{dS_t}{dt} = f(t, S_t),
+\end{equation*}
+would not be sufficient to capture the randomness present in the financial data.
+
+Stochastic differential equations (SDEs) are similar to ODEs,
+but include a stochastic term that allows for modeling the random fluctuations,
+\begin{equation}\label{eq:sde}
+    \frac{dS_t}{dt} = f(t, S_t) + \sigma(t, S_t) W_t,
+\end{equation}
+where the term $W_t$ is a stochastic process.
+Notice that \eqref{eq:sde} can be written in a integration notation as
+\begin{equation}\label{eq:int_sde}
+    S_t = S_0 \int^{t}_{0} f(t, S_t) dt + \int^{t}_{0} \sigma(t, S_t) dW_t,
+\end{equation}
+thus a key part of SDEs is defining the last term which is called stochastic integral.
+
+The most well known process that has a well defined stochastic integral is the Wiener process or Brownian motion,
+this stochastic integral is known as the Ito integral and will allow us to have the machinery to study SDEs and thus model the dynamics of financial assets.
+
+\subsection{Ito's integral}
+
+\begin{definition}\label{def:ito_integral_reqs}
+    Let $\mathcal{V} = \mathcal{V}(S, T)$ the class of functions
+    \begin{equation*}
+        f(t, \omega): [0, \infty) \time \Omega \to \R,
+    \end{equation*}
+    such that
+    \begin{itemize}
+        \item $(t, \omega)$ is $\mathcal{B} \times \mathcal{F}$-measurable, where $\mathcal{B}$ is the Borel $\sigma$-algebra on $[0, \infty)$ and $\mathcal{F}$ is the $\sigma$-algebra on $\Omega$,
+        \item $f(t, \omega)$ is $\mathcal{F}_t$ adapted.
+        \item $\E \left[ \int^{T}_{S} f(t, \omega)^2 dt \right] < \infty$.
+    \end{itemize}
+\end{definition}
+
+We will start by defining the Ito intregral for \textit{elementary functions},
+then this can be extended to functions in $\mathcal{V}$.
+
+\begin{definition}
+    A function $\phi$ is called \textit{elementary} if it has de form
+    \begin{equation*}
+        \phi(t, \omega) = \sum_{j} e_j(\omega) \1_{[t_j, t_{j + 1})}(t).
+    \end{equation*}
+\end{definition}
+
+For elementary functions we define the Ito integral as
+\begin{equation*}
+    \int^{T}_{S} \phi(t, \omega) dW_y(\omega) = \sum_{j} e_j(\omega) \left[ B_{t_{j + 1}} - B_{t_{j}} \right] (\omega).
+\end{equation*}
+
+\begin{lemma}[Ito isometry]
+    Let $\phi(t, \omega)$ be a bounded elementary function, then
+    \begin{equation*}
+        \E \left[ \left( \int^{T}_{S} \phi(t, \omega) dB_t (\omega) \right)^2 \right]
+            = \E \left[ \int^{T}_{S} \phi(t, \omega)^2 dt \right].
+    \end{equation*}
+\end{lemma}
+
+Using the Ito isometry and the definition of the Ito integral for elementary functions,
+the Ito integral can be extended to the class of functions $\mathcal{V}$,
+using that the functions in $\mathcal{V}$ can be expressed as the limit of sequences of simpler functions.
+It is worth mention the the Ito isometry still holds for any function in $\mathcal{V}$.
+
+The result of the integral is a stochastic process,
+which is a continuous martingale.
+This is similar to regular integration, where the result of integrating a function is a new function,
+in this case the result of integrating a process "over" a stochastic process is a new stochastic process,
+plus the resulting process has the nice property of being a martingale.
+% Theorem? 6.2 Steele
+
+The class $\mathcal{V}$ is rather limited and does not even contain all continuous functions, see \cite{steele_stochastic}.
+Having to restrict to this class would be rather inconvenient when modeling using SDEs,
+luckily the Ito integral can be extended to broader class by relaxing the last condition of the definition \ref{def:ito_integral_reqs}
+\begin{equation*}
+    P \left( \int^{T}_{S} f(t, \omega)^2 dt < \infty \right) = 1,
+\end{equation*}
+will call this class of functions $\mathcal{W}$.
+Notice that the class $\mathcal{W}$ does contain all continuous functions.
+
+\subsection{Ito's formula}
+
+Having defined the Ito integral,
+would be interesting to have a way to easily compute stochastic integrals without having to compute the limit of elementary functions,
+that is the purpose of the Ito's lemma or Ito's formula.
+The Ito's formula is a stochastic version of the chain rule for derivatives.
+
+\begin{definition}[Ito process]
+    Let $B_t$ be a Brownian motion on $(\Omega, \F, P)$.
+    An Ito process is a stochastic process $X_t$ on $(\Omega, \F, P)$ of the form
+    \begin{equation}\label{eq:ito_process}
+        X_t = X_0 + \int^{t}_{0} \mu(s, X_s) ds + \int^{t}_{0} \sigma(s, X_s) dB_s,
+    \end{equation}
+    where $\mu$ and $\sigma$ are adapted, measurable processes, that satisfy the integrability conditions
+    \begin{equation*}
+        P \left( \int^{T}_{0} \left| \mu(t, \omega) \right| dt < \infty \right) = 1,
+    \end{equation*}
+    and
+    \begin{equation*}
+        P \left( \int^{T}_{0} \sigma(t, \omega)^2 dt < \infty \right) = 1.
+    \end{equation*}
+\end{definition}
+
+The equation \eqref{eq:ito_process} can be also written in differential form as
+\begin{equation*}
+    dX_t = \mu ds + \sigma dB_s.
+\end{equation*}
+
+\begin{theorem}[1-dimensional Ito's formula]
+    Let $X_t$ be an Ito process given by
+    \begin{equation*}
+        dX_t = \mu ds + \sigma dB_s.
+    \end{equation*}
+    Let $g(t, x) \in C^2([0, \infty) \times \R)$, then
+    \begin{equation*}
+        Y_t = g(t, X_t),
+    \end{equation*}
+    is an Ito process given by
+    \begin{equation}\label{eq:ito_formula}
+        dY_t = 
+            \frac{\partial g}{\partial t}(t, X_t) dt
+            + \frac{\partial g}{\partial x}(t, X_t) dX_t
+            + \frac{1}{2} \frac{\partial^2 g}{\partial x^2}(t, X_t) (dX_t)^2,
+    \end{equation}
+    where $(dX_t)^2$ is computed according to the rules
+    \begin{equation*}
+        (dB_t)^2 = dt, \qquad
+        (dt)^2 = 0, \qquad
+        dB_t \cdot dt = 0.
+    \end{equation*}
+\end{theorem}
+
+For the proof of the Ito's formula we refer to \cite{oksendal_sde}.
+The formula can be extended to multiple dimensions.
+
+\begin{definition}[$n$-dimensional Ito process]
+    Let $B_t = (B_1(t), \dots, B_m(t))$ be a $m$-dimensional Brownian motion,
+    let $\mu_{i}$ and $\sigma_{ij}$ be adapted, measurable processes such that
+    \begin{equation*}
+        P \left( \int^{T}_{0} \left| \mu_{i}(t, \omega) \right| dt < \infty \right) = 1,
+        \qquad
+        P \left( \int^{T}_{0} \sigma_{ij}(t, \omega)^2 dt < \infty \right) = 1,
+    \end{equation*}
+    then we define the $n$-dimensional Ito process $X_t = (X_1(t), \dots, X_n(t))$ as
+    \begin{equation*}
+        \left\{
+        \begin{aligned}
+            & dX_1(t) = \mu_1 dt + \sigma_{11} dB_1(t) + \dots + \sigma_{1m} dB_m(t), \\
+            & \vdots \\
+            & dX_n(t) = \mu_n dt + \sigma_{n1} dB_1(t) + \dots + \sigma_{nm} dB_m(t), \\
+        \end{aligned}
+        \right.
+    \end{equation*}
+    or in matrix notation
+    \begin{equation*}
+        dX_t = \mu ds + \sigma dB_s.
+    \end{equation*}
+    where $\mu = (\mu_1, \dots, \mu_n)$ and $\sigma = (\sigma_{ij})$ are $n$-dimensional vectors and $m \times n$ matrices respectively.
+\end{definition}
+
+\begin{theorem}[General Ito's formula]
+    Let $X_t$ be a $n$-dimensional Ito process given by
+    \begin{equation*}
+        dX_t = \mu ds + \sigma dB_s.
+    \end{equation*}
+    Let $g(t, x) = (g_1(t, x), \dots, g_p(t, x)) \in C^2([0, \infty) \times \R^n)$, then
+    \begin{equation*}
+        Y_t = g(t, X_t),
+    \end{equation*}
+    is a $p$-dimensional Ito process whose components are given by
+    \begin{equation}\label{eq:ndim_ito_formula}
+        dY_k(t) = 
+            \frac{\partial g_k}{\partial t}(t, X_t) dt
+            + \sum_{i} \frac{\partial g_k}{\partial x_i}(t, X_t) dX_i(t)
+            + \frac{1}{2} \sum_{ij} \frac{\partial^2 g_k}{\partial x_i \partial x_j}(t, X_t) dX_i(t) dX_j(t),
+    \end{equation}
+    where $dX_i(t) dX_j(t)$ is computed according to the rules
+    \begin{equation*}
+        (dB_i(t))^2 = dt, \qquad
+        dB_i(t) dB_j(t) = 0.
+    \end{equation*}
+\end{theorem}
+
+\subsection{Stochastic differential equations}
+
+% Existence and uniqueness Theorem?
+
+% Strong and weak solutions?
+
+% Examples: Ornstein-Uhlenbeck, Geometric Brownian motion
+
+
+
+
