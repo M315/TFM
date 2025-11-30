@@ -1,0 +1,192 @@
+% ----------------------------------
+% - Local Volatility Model
+%   - Theory
+%     - Dupire PDE
+%     - SDE
+%     - No-arbitrage conditions
+%   - Calibration
+%     - Relation with implied volatilities
+%     - Interpolation/extrapolation methods
+%   - Experimental results
+%     - Pricer (PDE + Monte Carlo)
+%     - Calibration
+% ----------------------------------
+
+\section{Local Volatility Model}
+
+We are going to introduce the Local Volatility Model mainly following \cite{bergomi_stochastic_vol}.
+
+\subsection{Dupire Equation}
+
+We will deduce the Dupire equation from arbitrage free arguments.
+
+\subsection{Calibration problem}
+
+In both the Black-Scholes model and the Local Volatility model,
+the parameter must be calibrated to market data to make the model usable.
+We will focus on the calibration of the Volatility function $\sigma(S, t)$ in the Local Volatility model,
+and will assume that the risk-free rate $r$ and the dividend yield $q$ are known and constant.
+
+The market data consists of option prices for different strikes $K$ and maturities $T$,
+So the calibration problem is to find a function $\sigma(S, t)$ such that the model prices $C(S_0, t_0, T, K; \sigma)$ match the observed in the market.
+While the volatility function could be any function,
+usually it is assumed to be smooth and have some regularity.
+
+% Bid-ask spread
+
+
+\subsection{Calibration of the Local Volatility Model - Inverse PDE problem}
+
+We will present a calibration method based on the inverse problem following \cite{inverse_option_calibration}
+
+% Mention market data and implied volatilities
+
+\subsubsection{Change of variable - Log-moneyness}
+
+Market option prices are quoted over a discrete set of strikes $K$ and maturities $T$,
+but the absolute level of the strike depends on the current price of the underlying asset $S_0$.
+To avoid this dependency and make all options comparable,
+we will work with what is called the \textit{log-moneyness},
+defined as
+\begin{equation*}
+    y = \log(K/S_0),
+\end{equation*}
+the \textit{log-moneyness} indicates how far in or out of the money is an option in logarithmic scale.
+
+We redefine the notation of the volatility function and the call option price to reassemble a more standard for PDEs,
+let us define $\tau = T$ the time to maturity,
+$a(y, \tau) = \frac{1}{2} \sigma^2(K, T)$ as the diffusion parameter,
+and $u(\tau, y) = C(S_0, t_0; T, K)$ the call option price,
+to do this change of variable to the Dupire equation first we compute the derivatives of $C$ in terms of $u$,
+with respect to $T$,
+\begin{equation*}
+    C_T 
+        = \frac{\partial u}{\partial \tau} 
+        = u_{\tau},
+\end{equation*}
+with respect to $K$ we have to apply the chain rule,
+\begin{equation*}
+    C_K
+        = \frac{\partial u}{\partial y} \frac{\partial y}{\partial K}
+        = u_y \frac{1}{K},
+\end{equation*}
+and,
+\begin{equation*}
+    C_{KK}
+        = \frac{\partial}{\partial K} \frac{u_y}{K}
+        = \frac{1}{K} \frac{\partial u_y}{\partial K} - \frac{u_y}{K^2}
+        = \frac{1}{K^2} (u_{yy} - u_y),
+\end{equation*}
+thus the Dupire PDE becomes,
+\begin{equation}\label{eq:inverse_pde_1}
+    u_\tau = a(y, \tau) (u_{yy} - u_y) - (r - q) u_y + q u.
+\end{equation}
+We consider the PDE on a bounded domain $\Omega = (\alpha, \beta) \times (0, T]$,
+with Dirichlet boundary conditions,
+\begin{equation}\label{eq:inverse_pde_2}
+    u(\tau, \alpha) = \Psi_1(\tau), \quad
+    u(\tau, \beta) = \Psi_2(\tau),
+\end{equation}
+and initial condition,
+\begin{equation}\label{eq:inverse_pde_3}
+    u(0, y) = f(y) = S_0 \max(1 - e^y, 0).
+\end{equation}
+
+Thus the inverse problem is to identify the diffusion parameter $a(y, \tau)$ from the initial value boundary problem defined by $(\ref{eq:inverse_pde_1})$, $(\ref{eq:inverse_pde_2})$, $(\ref{eq:inverse_pde_3})$.
+
+\subsubsection{Reconstruction algorithm}
+
+The proposed algorithm on \cite{inverse_option_calibration} considers to solve the problem on periods of maturities $[T_i, T_{i + 1}]$,
+for each maturity with option price data.
+
+The idea is to consider the to consider the option price function $f(y)$ at the beginning of the period $T_i$ and $g(y)$ at the end of the period $T_{i + 1}$,
+then we consider a linear operator $A_f$ that maps the diffusion parameter $a$ to the price function at the end of the period,
+\begin{equation*}
+    A_f(a) = u_a(T_{i + 1}, y) = g(y),
+\end{equation*}
+and we want to find $a$ such that this equality holds.
+
+This approach transforms the nonlinear inverse problem into a series of linear problems,
+that are solvable using a Newton-type method.
+
+% Formal definition of the operator, spaces and smoothness of function f and g
+
+
+\subsubsection{Linear operator - Gateaux derivative}
+
+To apply Newton-like methods we first need to compute the Gâteaux derivative of the operator $A_f$.
+This will give a linear approximation of the operator around a given point,
+that we will use to transform our nonlinear problem into a series of linear problems.
+
+\begin{proposition}
+Let $a \in L^\infty(\Omega)$ be a coefficient such that the forward problem admits a unique solution $u_a$.
+The Gâteaux derivative of $A_f$ at $a$ in the direction $h$,
+denoted by $A_f'(a)$, is given by $A_f'(a)h = w(\cdot, T)$,
+where $w(y, \tau)$ is the unique solution to the linearized variational problem:
+\begin{equation}\label{eq:gateaux_derivative}
+    - w_\tau + a(y, \tau)(w_{yy} - w_y) - (r-q)w_y + qw
+    = - h(y, \tau)( (u_a)_{yy} - (u_a)_y ),
+\end{equation}
+subject to homogeneous initial and boundary conditions:
+\begin{align}
+    w(0, y) &= 0, & y \in (\alpha, \beta), \\
+    w(\tau, \alpha) &= 0, \quad w(\tau, \beta) = 0, & \tau \in [0, T].
+\end{align}
+\end{proposition}
+
+
+\subsubsection{Adjoint operator}
+
+To implement gradient-based minimization algorithms efficiently,
+we introduce the adjoint of the Gâteaux derivative,
+referred as the backpropagation operator in \cite{inverse_option_calibration}.
+
+Let $A_f'(a)^*: L^2(\Omega) \to L^2(\Omega \times [0, T])$ denote the adjoint operator.
+For a given residual $\psi \in L^2(\Omega)$ (e.g., $\psi = A_f(a) - g$),
+the action of the adjoint operator is defined via the solution to a backward parabolic problem.
+
+\begin{proposition}[Adjoint Operator]
+Let $u_a$ be the solution to the forward problem for a given volatility parameter $a$. For any $\psi \in L^2(\Omega)$, let $m(y, \tau)$ be the solution to the following adjoint backward parabolic equation:
+\begin{equation}\label{eq:adjoint_pde}
+    \frac{\partial m}{\partial \tau} 
+    + \frac{\partial^2 a(y, \tau) m}{\partial y^2} 
+    + \frac{\partial a(t, \tau) m}{\partial y} 
+    + (r-q)\frac{\partial m}{\partial y} 
+    = 0,
+\end{equation}
+subject to the final and boundary conditions:
+\begin{align}
+    m(y, T) &= \psi(y), & y \in (\alpha, \beta), \\
+    m(\alpha, \tau) &= 0, \quad m(\beta, \tau) = 0, & \tau \in [0, T).
+\end{align}
+Then, the adjoint operator applied to $\psi$ is given by:
+\begin{equation}
+    A_f'(a)^* \psi 
+        = m \left(
+            \frac{\partial^2 u_a}{\partial y^2} 
+            - \frac{\partial u_a}{\partial y} 
+            \right).
+\end{equation}
+\end{proposition}
+
+In the case where the volatility parameter $a(y)$ is assumed to be time-independent, the adjoint operator maps into $L^2(\alpha, \beta)$ by integrating the time-dependent sensitivity over the duration of the option:
+\begin{corollary}[Time-Independent Case]
+If $a = a(y)$, the gradient of the objective function with respect to $a$ is given by:
+\begin{equation}
+    A_f'(a)^* \psi 
+        = \int_0^T m(\cdot, \tau) \left(
+            \frac{\partial^2 u_a}{\partial y^2}(\cdot, \tau) 
+            - \frac{\partial u_a}{\partial y}(\cdot, \tau) 
+            \right) \, d\tau.
+\end{equation}
+\end{corollary}
+
+
+\subsubsection{Algorithm}
+
+
+\subsubsection{Practial implementation}
+
+\subsubsection{Numerical results}
+
+\subsubsection{Alternative approach Interpolation/Exaptrapolation of the IV surface - Optional}

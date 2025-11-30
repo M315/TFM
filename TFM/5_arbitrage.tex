@@ -88,7 +88,7 @@ its only present implicitly in the prices $S(t)$ of the assets.
 The martingale method is an alternative framework to the PDE method,
 that allows to price contingent claims in a more flexible way.
 
-We will use \cite{bjork_arbitrage} as a reference for this section,
+We will use chapter $10$ of \cite{bjork_arbitrage} as a reference for this section,
 we start with a couple of definitions related with the concept of market and portfolio defined previously.
 \begin{definition}[Attainable process]
     We say a price process $V(t)$ is \textit{attainable} if there exists a self-financing portfolio $\theta(t)$ such that $V(t) = \theta(t) S(t)$.
@@ -109,7 +109,7 @@ see \cite{steele_stochastic} sections 14.5 and 14.6 for more details on such str
 
 Now we will formalize the idea of arbitrage in a market.
 \begin{definition}[Arbitrage]
-    A self-financing portfolio $\theta(t)$ is an \textit{arbitrage} if one of the following conditions hold for time $t$:
+    A self-financing and admissible portfolio $\theta(t)$ is an \textit{arbitrage} if one of the following conditions hold for time $t$:
     \begin{enumerate}
         \item $\theta(0) S(0) < 0$ and $P(\theta(t) S(t) \geq 0) = 1$,
         \item $\theta(0) S(0) = 0$ and $P(\theta(t) S(t) \geq 0) = 1$ and $P(\theta(t) S(t) > 0) > 0$,
@@ -128,3 +128,47 @@ Under this assumption we introduce the \textit{risk-neutral measure} $\Q$ as,
 We refer to $P$ as the "real" probability measure and reflects the true probability of the price processes,
 whereas $\Q$ is a probability measure under which the expected price of any asset is equal to the current one regardless of their risk (volatility).
 
+Under this assumption we have the following theorem.
+\begin{theorem}[First fundamental theorem of asset pricing]\label{thm:1_fundamental_thm}
+    The market $\{ S_i(t) \}$ is arbitrage-free if and only if there exists an equivalent (local) martingale measure $\Q$.
+\end{theorem}
+We include the local martingales as restricting to the martingales would eliminate too many processes,
+that are of interest.
+
+The restriction on the risk-free asset being constant can be dropped by considering the first price process a numeraire and normalizing the market.
+For $S_0$ to be a numeraire we need that $S_0(t) > 0$ almost surely for all $t \geq 0$.
+Using $S_0$ as numeraire we can consider the processes $Z_i = S_i(t) / S_0(t)$,
+which are the \textit{discounted} price processes of the assets.
+\begin{definition}[Normalized market]\label{def:norm_market}
+    A normalized market is a vector of  processes $Z$ given by
+    \begin{equation*}
+        Z_i(t) = \frac{S_i(t)}{S_0(t)}, \quad i = 1, \ldots, n.
+    \end{equation*}
+\end{definition}
+
+The results we have presented so far are invariant to the usage of the "regular" market $\{ S_i(t) \}$ as defined in \eqref{def:market} or the normalized market $\{ Z_i(t) \}$ \eqref{def:norm_market}.
+So if a portfolio is self-financing on $\{ S_i(t) \}$ then it is also self-financing on $\{ Z_i(t) \}$ it is also self-financing on $\{ Z_i(t) \}$,
+and if a portfolio does not have arbitrage on $\{ S_i(t) \}$ then it is also self-financing on $\{ Z_i(t) \}$ it does not have it on $\{ Z_i(t) \}$ either.
+Thus \ref{thm:1_fundamental_thm} holds for any market $\{ S_i(t) \}$ by just normalizing it.
+
+Notice that if the numeraire is the risk-free asset $S_0$ then the the market $\{ S_i(t) \}$ is arbitrage-free if all assets $S_i(t)$ have a local rate of return $r(t)$ under $\Q$,
+that is, if $\mu_i(S_i(t), t) = r(t) S_i(t)$ for all $i = 1, \ldots, n$ under $\Q$.
+
+Under the assumption of a market with no arbitrage,
+a key question is wether a contingent claim can be replicated by a portfolio consisting on the market assets.
+This yields the following theorem.
+\begin{theorem}[Second fundamental theorem of asset pricing]
+   Assuming absence of arbitrage,
+   the market model is complete if and only if the martingale measure $\Q$ is unique.
+\end{theorem}
+
+Finally we can give a general formula to price contingent claims.
+Under the assumption of a complete market,
+the price of a contingent claim $f(S(T))$ is given by
+\begin{equation}\label{eq:martingale_pricing}
+    V(t, f(S(T))) = \E^{\Q} S_0(t) \left[ \frac{f(S(T))}{S_0(T)} | \F_t \right]
+\end{equation}
+in case that the numeraire is the risk-free asset,
+\begin{equation*}
+    V(t, f(S(T))) = \E^{\Q} \left[ e^{ \int^T_t r(s) ds} f(S(T)) | \F_t \right]
+\end{equation*}
