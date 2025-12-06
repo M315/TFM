@@ -6,7 +6,7 @@ from dolfinx.fem.petsc import LinearProblem
 
 from utils import create_bcs
 
-def compute_adj_dAf(a, residual, trajectory, dt, M_time, V, r, y_0, y_1):
+def compute_adj_dAf(a_vol, residual, trajectory, dt, M_time, V, r, y_0, y_1, t_0):
     """
     Computes the gradient of the objective function w.r.t 'a' using the Adjoint method.
     Returns the gradient function and the adjoint state at the beginning of the interval.
@@ -15,8 +15,8 @@ def compute_adj_dAf(a, residual, trajectory, dt, M_time, V, r, y_0, y_1):
     m = fem.Function(V)
     m.x.array[:] = residual.x.array[:]
     
-    gradient = fem.Function(V)
-    gradient.x.array[:] = 0.0
+    gradients = [fem.Function(V) for _ in a_vol.a]
+    for g in gradients: g.x.array[:] = 0.0
     
     # Adjoint Boundary Conditions are homogeneous (0.0)
     zero = fem.Constant(V.mesh, 0.0)
@@ -24,6 +24,9 @@ def compute_adj_dAf(a, residual, trajectory, dt, M_time, V, r, y_0, y_1):
     
     # Backward time stepping
     for t in range(M_time - 1, -1, -1):
+        current_time = t_0 + (t + 1) * dt
+        a = a_vol.get(current_time)
+
         u_prev = trajectory[t]
         
         # Compute one step backward for adjoint m and get gradient contribution
@@ -31,12 +34,12 @@ def compute_adj_dAf(a, residual, trajectory, dt, M_time, V, r, y_0, y_1):
         m_prev, g_inc = adjoint_gateaux(m, u_prev, a, dt, V, r, bcs)
         
         # Accumulate gradient
-        gradient.x.array[:] += g_inc.x.array[:]
+        gradients[a_vol.get_idx(current_time)].x.array[:] += g_inc.x.array[:]
         
         # Update adjoint state for next step
         m.x.array[:] = m_prev.x.array[:]
         
-    return gradient, m
+    return gradients, m
 
 
 def adjoint_gateaux(m_1, u_1, a_func, dt, V, r_rate, bcs):

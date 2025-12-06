@@ -2,12 +2,12 @@ from mpi4py import MPI
 from petsc4py.PETSc import ScalarType
 import numpy as np
 import ufl
-from dolfinx import fem, mesh, plot
+from dolfinx import fem
 from dolfinx.fem.petsc import LinearProblem
 
 from utils import create_bcs
 
-def compute_Af(a, u_initial, dt, M_time, V, r, y_0, y_1, t_0, psi_1_func, psi_2_func):
+def compute_Af(a_vol, u_initial, dt, M_time, V, r, y_0, y_1, t_0, psi_1_func, psi_2_func):
     u = fem.Function(V)
     u.x.array[:] = u_initial.x.array[:]
     trajectory = [u.copy()]
@@ -15,6 +15,7 @@ def compute_Af(a, u_initial, dt, M_time, V, r, y_0, y_1, t_0, psi_1_func, psi_2_
     for t in range(M_time):
         current_time = t_0 + (t + 1) * dt
         bcs = create_bcs(V, y_0, y_1, psi_1_func(current_time), psi_2_func(current_time))
+        a = a_vol.get(current_time)
         u = propagation(u, a, dt, V, r, bcs)
         trajectory.append(u.copy())
         
