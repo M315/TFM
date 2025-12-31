@@ -1,0 +1,196 @@
+from mpi4py import MPI
+
+import numpy as np
+import scipy.optimize
+
+import matplotlib.pyplot as plt
+
+import ufl
+from dolfinx import fem, mesh
+
+from a_f import compute_Af
+from adj_da_f import compute_adj_dAf
+import utils
+# from petsc4py.PETSc import ScalarType
+
+
+def cost_function_and_grad(a_vec, a_vol, u_at_t0, g_target, V, r, y_0, y_1, t_0, t_1, M_time, psi_1, psi_2):
+    dof_size = V.dofmap.index_map.size_global
+    for i, func in enumerate(a_vol.a):
+        start = i * dof_size
+        end = (i + 1) * dof_size
+        func.x.array[:] = a_vec[start:end]
+    
+    dt = (t_1 - t_0) / M_time
+    g_pred, traj = compute_Af(a_vol, u_at_t0, dt, M_time, V, r, y_0, y_1, t_0, psi_1, psi_2)
+    
+    residual = fem.Function(V)
+    residual.x.array[:] = g_pred.x.array[:] - g_target.x.array[:]
+    cost = L2_norm(residual)
+    
+    grads, _ = compute_adj_dAf(a_vol, residual, traj, dt, M_time, V, r, y_0, y_1, t_0)
+    
+    total_grads = np.concatenate([g.x.array for g in grads])
+        
+    return cost, total_grads
+
+
+def plot_calibration_result_3d(vol_obj, V, t_start, t_end, title="Calibrated Parameter"):
+    y_coords = V.mesh.geometry.x[:, 0]
+    sort_idx = np.argsort(y_coords)
+    y_sorted = y_coords[sort_idx]
+    
+    # Create grid
+    t_grid = np.linspace(t_start, t_end, 20)
+    T, Y = np.meshgrid(t_grid, y_sorted, indexing='ij')
+    
+    # Extrude 'a' along time (assuming constant within this interval)
+    Z_rows = []
+    for t in t_grid:
+        active_func = vol_obj.get(t) # Use your new get() method
+        vals = active_func.x.array.real[sort_idx]
+        Z_rows.append(vals)
+    Z = 2.0 * np.sqrt(np.array(Z_rows))
+    # Z = np.tile(a_vals, (len(t_grid), 1))
+    # Z = np.tile(a_vals, (len(t_grid), 1))
+    
+    fig = plt.figure(figsize=(10, 6))
+    ax = fig.add_subplot(111, projection='3d')
+    surf = ax.plot_surface(Y, T, Z, cmap='plasma', edgecolor='none', alpha=0.9)
+    
+    ax.set_title(title)
+    ax.set_xlabel('Log-Moneyness (y)')
+    ax.set_ylabel('Time (t)')
+    ax.set_zlabel('Parameter a(y)')
+    fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10)
+    
+    output_file = "calibration_03_06.png"
+    plt.savefig(output_file)
+    print(f"Plot saved to {output_file}")
+    plt.show()
+
+
+def add_noise(u_func, noise_level=0.01):
+    """
+    Adds Gaussian noise to a dolfinx Function.
+    noise_level: Standard deviation as a percentage of the max value (e.g., 0.01 = 1%)
+    """
+    # Create a copy to avoid modifying the original
+    u_noisy = fem.Function(u_func.function_space)
+    vals = u_func.x.array.real.copy()
+    
+    # Scale noise by the magnitude of the data
+    scale = np.max(np.abs(vals))
+    noise = np.random.normal(0, noise_level * scale, size=vals.shape)
+    
+    u_noisy.x.array[:] = vals + noise
+    return u_noisy
+
+
+def L2_norm(u):
+    J_form = fem.form(ufl.inner(u, u) * ufl.dx)
+    local_val = fem.assemble_scalar(J_form)
+    global_val = u.function_space.mesh.comm.allreduce(local_val, op=MPI.SUM)
+    return np.sqrt(global_val)
+
+
+
+class Vol:
+    t_0: float
+    t_1: float
+    a: list[fem.Function]
+
+    def __init__(self, V, const_func, t_0, t_1, N):
+        self.t_0 = t_0
+        self.t_1 = t_1
+        self.a = [const_func.copy() for _ in range(N)]
+
+    def get(self, t: float):
+        return self.a[self.get_idx(t)]
+    
+    def get_idx(self, t: float):
+        if t < self.t_0 or t > self.t_1:
+            raise ValueError("Time t is out of bounds for the Vol parameter.")
+        if t == self.t_1:
+            return len(self.a) - 1
+        dt = (self.t_1 - self.t_0) / len(self.a)
+        idx = int((t - self.t_0) / dt)
+        return idx
+
+
+
+if __name__ == "__main__":
+    # Initial conditions
+    y_0, y_1 = (-1.0, 1.0)
+    t_0, t_1 = (0.3, 0.6)
+    r = 0.0
+    S_0 = 1.0
+
+    # Discretization
+    N_space = 70
+    M_time = 100
+
+    # Define Mesh and Function Space
+    msh = mesh.create_interval(MPI.COMM_WORLD, N_space, points=(y_0, y_1))
+    V = fem.functionspace(msh, ("Lagrange", 1))
+
+    # True Vol
+    sigma_true = lambda y: 0.4 + 0.1 * np.arctan(y[0])
+    a_true = fem.Function(V)
+    a_true.interpolate(lambda x: 0.5 * sigma_true(x)**2)
+    a_true = Vol(V, a_true, 0.0, t_1, N= 2 * M_time)
+
+    # Boundary conditions
+    psi_1 = lambda t: 0.67
+    psi_2 = lambda t: 0.0
+
+    # Initialize function - use initial conditions for the log-moneyness Dupire PDE
+    u_0 = fem.Function(V)
+    u_0.interpolate(lambda x: np.maximum(1.0 - np.exp(x[0]), 0.0))
+
+    # Forward propagate to get f
+    dt = (t_0 - 0.0) / M_time
+    f, _ = compute_Af(a_true, u_0, dt, M_time, V, r, y_0, y_1, 0.0, psi_1, psi_2)
+
+    # Forward propagate to get g
+    dt = (t_1 - t_0) / M_time
+    g, _ = compute_Af(a_true, f.copy(), dt, M_time, V, r, y_0, y_1, t_0, psi_1, psi_2)
+
+    f = add_noise(f, 0.0005)
+    g = add_noise(g, 0.0005)
+
+    # First guess for a
+    a_k = fem.Function(V)
+    # a_k.interpolate(lambda x: 0.08 + 0.01*x[0]) # Flat initial guess
+    s = 0.5
+    a_k.interpolate(lambda x: 0.06 + 0.02 / (s * np.sqrt(2.0 * np.pi)) * np.exp(-0.5 * np.power(x[0] / s, 2.0))) # Gaussian initial guess
+    # a_k.interpolate(lambda x: 0.5 * sigma_true(x)**2)
+    a_k = Vol(V, a_k, t_0, t_1, N=M_time)
+    a_vec_init = np.concatenate([func.x.array for func in a_k.a])
+
+    # print(f"Initial Cost: {L2_norm(compute_Af(a_k, f, dt, M_time, V, r, y_0, y_1, t_0, psi_1, psi_2)[0] - g):.6f}")
+
+    # Optimization
+    print("Starting Optimization...")
+    # bounds = [(1e-6, None) for _ in range(len(a_k.x.array))]
+    bounds = [(1e-8, None) for _ in range(len(a_vec_init))]
+    res = scipy.optimize.minimize(
+        fun=cost_function_and_grad,
+        x0=a_vec_init,
+        args=(a_k, f, g, V, r, y_0, y_1, t_0, t_1, M_time, psi_1, psi_2),
+        method='L-BFGS-B',
+        jac=True,
+        bounds=bounds,
+        options={'disp': True, 'maxiter': 20}
+    )
+    
+    print(f"Optimization Complete. Final Cost: {res.fun:.6f}")
+
+    dof_size = V.dofmap.index_map.size_global
+    for i, func in enumerate(a_k.a):
+        start = i * dof_size
+        end = (i + 1) * dof_size
+        func.x.array[:] = res.x[start:end]
+
+    # Plot
+    plot_calibration_result_3d(a_k, V, t_0, t_1, title=f"Calibrated Volatility")

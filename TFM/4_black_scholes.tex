@@ -243,5 +243,158 @@ which is the \textbf{Black-Scholes PDE}.
 
 \subsection{Pricing - Solving the Black-Scholes PDE}
 
+There is an analytical solution to the Black-Scholes PDE.
+See \cite{steele_stochastic} for a more detailed derivation.
+
+Start a change of variables.
+Let $\tau = T - t$ be the time to maturity,
+and $x = \ln{\left( \frac{S}{K} \right)}$ be the log-moneyness.
+We define a new function $u(\tau, x) = f(t, S)$ so the Black-Scholes PDE is transformed to,
+\begin{equation*}
+    \frac{\partial u}{\partial \tau} =
+        \frac{1}{2} \sigma^2 \frac{\partial^2 u}{\partial x^2}
+        + \left(r - \frac{1}{2} \sigma^2  \right) \frac{\partial u}{\partial x} 
+        - r u(\tau, x).
+\end{equation*}
+
+Now we would like to remove the drift term (the derivative with respect to $x$) and the and the zero order term,
+so we have a standard heat equation.
+To do it we do another transformation,
+\begin{equation*}
+    u(x, \tau) = e^{\alpha x + \beta \tau} v(x, \tau),
+\end{equation*}
+where $\alpha$ and $\beta$ are the coeficients that lead to the heat equation,
+using,
+\begin{equation*}
+\begin{aligned}
+    & u_{\tau} = e^{\alpha x + \beta \tau} (\beta v + v_{\tau}),\\
+    & u_{x} = e^{\alpha x + \beta \tau} (\alpha v + v_{x}), \\
+    & u_{xx} = e^{\alpha x + \beta \tau} (\alpha^2 v + 2 \alpha v_{x} + v_{xx}), \\
+\end{aligned}
+\end{equation*}
+we get,
+\begin{equation*}
+    v_{\tau} =
+        \frac{1}{2} \sigma^2 v_{xx}
+        + v_x \left( \sigma^2 \alpha + r - \frac{1}{2} \sigma^2 \ \right)
+        + v \left( \frac{1}{2} \sigma^2 (\alpha^2 - \alpha) + r \alpha - r - \beta \right),
+\end{equation*}
+thus,
+\begin{equation*}
+    \alpha
+        = \frac{1}{2} - \frac{r}{\sigma^2}
+        = - \frac{1}{\sigma^2}(r - \frac{1}{2} \sigma^2),
+\end{equation*}
+and
+\begin{equation*}
+\begin{aligned}
+    \beta
+        & = \alpha \left( r + \frac{1}{2} \sigma^2 (\alpha - 1) \right) - r \\
+        & = \alpha \left( \frac{1}{2} r - \frac{1}{4} \sigma^2 \right) - r \\
+        & = - \frac{1}{2 \sigma^2} \left( r - \frac{1}{2} \sigma^2 \right)^2 - r \\
+        % & = - \frac{1}{2 \sigma^2} \left( \left( r - \frac{1}{2} \sigma^2 \right)^2 + 2r\sigma^2 \right) \\
+        % & = - \frac{1}{2 \sigma^2} \left( r^2 + \frac{1}{4} \sigma^4 + r \sigma^2 \right) \\
+        & = - \frac{1}{2 \sigma^2} \left( r + \frac{1}{2} \sigma^2 \right)^2. \\
+\end{aligned}
+\end{equation*}
+So we get the standard heat equation,
+\begin{equation*}
+    \frac{\partial{v}}{\partial \tau} =
+        \frac{1}{2} \sigma^2 \frac{\partial^2 v}{\partial x^2},
+\end{equation*}
+with initial conditions for $v$,
+\begin{equation*}
+    v(x,0)
+        = e^{-\alpha x} u(x, 0)
+        = K e^{-\alpha x} \max(e^x - 1, 0).
+\end{equation*}
+
+Now we can solve the equation using the heat operator,
+\begin{equation*}
+    v(x, \tau)
+        = \int^{\infty}_{-\infty} v(y, 0) k(\sigma^2; \tau, x- y)  dy,
+        % = \frac{1}{2\sqrt{\pi \sigma^2 \tau}} \int^{\infty}_{-\infty} v(y, 0) e^{-\frac{(x- y)^2}{4 \sigma^2 \tau}} dy
+\end{equation*}
+where the function $k$ is the heat kernel,
+using the initial condition we get,
+\begin{equation*}
+    v(x, \tau)
+        = \int^{\infty}_{0} K e^{-\alpha y} (e^y - 1) k(\sigma^2; \tau, x- y)  dy,
+        % = \frac{1}{2\sqrt{\pi \sigma^2 \tau}} \int^{\infty}_{0} K e^{-\alpha x} (e^x - 1) e^{-\frac{(x- y)^2}{4 \sigma^2 \tau}} dy
+\end{equation*}
+this leaves us with two integrals
+\begin{equation*}
+\begin{aligned}
+    & I_1 = K \int^{\infty}_{0} e^{(1 - \alpha) y} k(\sigma^2; \tau, x- y)  dy, \\
+    & I_2 = - K \int^{\infty}_{0} e^{-\alpha y} k(\sigma^2; \tau, x- y)  dy, \\
+\end{aligned}
+\end{equation*}
+if we make a change of variable, $s = x - y$, then
+\begin{equation*}
+\begin{aligned}
+    & I_1 = K e^{(1 - \alpha) x} \int^{x}_{\infty} e^{-(1 - \alpha) s} k(\sigma^2; \tau, s)  ds, \\
+    & I_2 = - K e^{-\alpha x} \int^{x}_{\infty} e^{\alpha s} k(\sigma^2; \tau, s)  ds. \\
+\end{aligned}
+\end{equation*}
+
+We will use the following identity to compute the integral,
+\begin{equation*}
+    \int^{\alpha}_{-\infty} k(\sigma^2, \tau, s) e^{-\beta s} ds 
+        = e^{\frac{\beta^2 \sigma^2 \tau}{2}} \Phi \left(\frac{\alpha}{\sigma \sqrt{\tau}} + \beta \sigma \sqrt{\tau}\right),
+\end{equation*}
+where $\Phi$ is the gaussian cumulative function.
+Thus using it in our integrals and substituting back to $u = e^{\alpha x + \beta \tau} v$,
+we get
+\begin{equation*}
+\begin{aligned}
+    & I'_1 = K \exp \left( \alpha x + \beta \tau + (1 + \alpha) x + \frac{(1 - \alpha)^2 \sigma^2 \tau}{2} \right) \Phi(d_1), \\
+    & I'_2 = K \exp \left( \alpha x + \beta \tau - \alpha x + \frac{\alpha^2 \sigma^2 \tau}{2} \right) \Phi(d_2), \\
+\end{aligned}
+\end{equation*}
+rearranging and simplifying the expressions
+\begin{equation*}
+\begin{aligned}
+    & I'_1 = K \exp \left( x + \left( \beta + \frac{(1 - \alpha)^2 \sigma^2}{2} \right) \tau \right) \Phi(d_1), \\
+    & I'_2 = K \exp \left( \left( \beta + \frac{\alpha^2 \sigma^2}{2} \right) \tau \right) \Phi(d_2), \\
+\end{aligned}
+\end{equation*}
+the exponent of the first term simplifies to
+\begin{equation*}
+    x + \left( \beta + \frac{(1 - \alpha)^2 \sigma^2}{2} \right) \tau
+        = x + \frac{1}{2 \sigma^2} \left( - \left( r + \frac{1}{2} \sigma^2 \right)^2 + \left(r + \frac{1}{2}\sigma^2\right)^2 \right) \tau
+        = x,
+\end{equation*}
+and for the second one we use that while deriving $\beta$,
+we found
+\begin{equation*}
+    \beta 
+        = \frac{1}{2} \alpha \left( r - \frac{1}{2} \sigma^2 \right) - r
+        = \frac{\sigma^2}{2} \alpha \frac{1}{\sigma^2}\left( r - \frac{1}{2} \sigma^2 \right) - r
+        = - \frac{\sigma^2}{2} \alpha^2 - r,
+\end{equation*}
+thus
+\begin{equation*}
+    I'_1 = K e^x \Phi(d_1), \quad
+    I'_2 = K e^{-r \tau} \Phi(d_2).
+\end{equation*}
+
+Finally reverting the first change of variables from $f$ to $u$,
+where $\tau = T - t$ and $x = \ln{\left( \frac{S}{K} \right)}$ we get the \textbf{Black-Scholes formula}
+\begin{equation} \label{eq:black_scholes_formula}
+    f(t, S) = S \Phi(d_1) - K e^{-r (T - t)} \Phi(d_2),
+\end{equation}
+where
+\begin{equation*}
+    d_1 = 
+        \frac{1}{\sigma \sqrt{T - t}} 
+        \left(
+            \ln \left( \frac{S}{K} \right) 
+            + \left( r + \frac{\sigma^2}{2} \right) (T - t) 
+        \right),
+\end{equation*}
+\begin{equation*}
+    d_2 = d_1 - \sigma \sqrt{T - t}.
+\end{equation*}
+
 
 \subsection{Calibration - Implied volatility}

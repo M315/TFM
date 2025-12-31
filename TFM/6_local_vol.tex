@@ -16,6 +16,38 @@
 
 We are going to introduce the Local Volatility Model mainly following \cite{bergomi_stochastic_vol}.
 
+\subsection{Model description}
+
+The \textbf{local volatility model} is the simplest and most widely used volatility model in derivatives pricing.
+It extends the Black-Scholes framework by allowing the instantaneous volatility to be a deterministic function of both time and the spot price of the underlying asset,
+\begin{equation*}
+    \sigma = \sigma(t, S).
+\end{equation*}
+So the dynamics of the underlying asset under the local volatility model are given by the following stochastic differential equation,
+\begin{equation*}
+    \frac{dS_t}{S_t} = \mu(t, S_t) dt + \sigma(t, S_t) dW_t,
+\end{equation*}
+and the pricing PDE is identical to the Black-Scholes PDE,
+with the deterministic volatility function replacing the constant volatility
+\begin{equation*}
+    \frac{\partial f}{\partial t} =
+        r f(t, S_t)
+        - r \frac{\partial f}{\partial S} S_t 
+        - \frac{1}{2} \frac{\partial^2 f}{\partial S^2} \sigma^2(t, S_t) S_t^2,
+\end{equation*}
+
+\subsubsection{Market model}
+
+A market model is a valuation model that includes vanilla options as part of the underlying,
+this means we are assuming that when hedging a derivative,
+we can use the vanilla options as a hedging instrument,
+in other words,
+the derivative can be replicated using a combination of the underlying as well as vanilla options.
+Thus vanilla options under a market model are exactly priced.
+
+The local volatility model is a market model,
+since it is calibrated to match the vanilla option prices observed in the market
+
 \subsection{Dupire Equation}
 
 We will deduce the Dupire equation from arbitrage free arguments.

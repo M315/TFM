@@ -6,3 +6,5 @@
 *.bcf
 *.blg
 *.synctex*
+
+*.pyc
