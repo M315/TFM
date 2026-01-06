@@ -54,6 +54,7 @@ def adjoint_gateaux(m_1, u_1, a_func, dt, V, r_rate, bcs):
     adj_op = (m - m_1) * v * ufl.dx + \
             dt_c * (
                 a_func * ufl.dot(ufl.grad(m), ufl.grad(v)) * ufl.dx + \
+                m * ufl.dot(ufl.grad(a_func), ufl.grad(v)) * ufl.dx + \
                 (a_func + r_c) * m * v.dx(0) * ufl.dx
             )
     

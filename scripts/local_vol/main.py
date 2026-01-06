@@ -3,23 +3,15 @@ from mpi4py import MPI
 import numpy as np
 import scipy.optimize
 
-import matplotlib.pyplot as plt
-
-import ufl
 from dolfinx import fem, mesh
 
 from a_f import compute_Af
 from adj_da_f import compute_adj_dAf
-import utils
-# from petsc4py.PETSc import ScalarType
+from utils import L2_norm, plot_calibration_result_3d, add_noise
 
 
 def cost_function_and_grad(a_vec, a_vol, u_at_t0, g_target, V, r, y_0, y_1, t_0, t_1, M_time, psi_1, psi_2):
-    dof_size = V.dofmap.index_map.size_global
-    for i, func in enumerate(a_vol.a):
-        start = i * dof_size
-        end = (i + 1) * dof_size
-        func.x.array[:] = a_vec[start:end]
+    a_vol.update(V, a_vec)
     
     dt = (t_1 - t_0) / M_time
     g_pred, traj = compute_Af(a_vol, u_at_t0, dt, M_time, V, r, y_0, y_1, t_0, psi_1, psi_2)
@@ -33,66 +25,6 @@ def cost_function_and_grad(a_vec, a_vol, u_at_t0, g_target, V, r, y_0, y_1, t_0,
     total_grads = np.concatenate([g.x.array for g in grads])
         
     return cost, total_grads
-
-
-def plot_calibration_result_3d(vol_obj, V, t_start, t_end, title="Calibrated Parameter"):
-    y_coords = V.mesh.geometry.x[:, 0]
-    sort_idx = np.argsort(y_coords)
-    y_sorted = y_coords[sort_idx]
-    
-    # Create grid
-    t_grid = np.linspace(t_start, t_end, 20)
-    T, Y = np.meshgrid(t_grid, y_sorted, indexing='ij')
-    
-    # Extrude 'a' along time (assuming constant within this interval)
-    Z_rows = []
-    for t in t_grid:
-        active_func = vol_obj.get(t) # Use your new get() method
-        vals = active_func.x.array.real[sort_idx]
-        Z_rows.append(vals)
-    Z = 2.0 * np.sqrt(np.array(Z_rows))
-    # Z = np.tile(a_vals, (len(t_grid), 1))
-    # Z = np.tile(a_vals, (len(t_grid), 1))
-    
-    fig = plt.figure(figsize=(10, 6))
-    ax = fig.add_subplot(111, projection='3d')
-    surf = ax.plot_surface(Y, T, Z, cmap='plasma', edgecolor='none', alpha=0.9)
-    
-    ax.set_title(title)
-    ax.set_xlabel('Log-Moneyness (y)')
-    ax.set_ylabel('Time (t)')
-    ax.set_zlabel('Parameter a(y)')
-    fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10)
-    
-    output_file = "calibration_03_06.png"
-    plt.savefig(output_file)
-    print(f"Plot saved to {output_file}")
-    plt.show()
-
-
-def add_noise(u_func, noise_level=0.01):
-    """
-    Adds Gaussian noise to a dolfinx Function.
-    noise_level: Standard deviation as a percentage of the max value (e.g., 0.01 = 1%)
-    """
-    # Create a copy to avoid modifying the original
-    u_noisy = fem.Function(u_func.function_space)
-    vals = u_func.x.array.real.copy()
-    
-    # Scale noise by the magnitude of the data
-    scale = np.max(np.abs(vals))
-    noise = np.random.normal(0, noise_level * scale, size=vals.shape)
-    
-    u_noisy.x.array[:] = vals + noise
-    return u_noisy
-
-
-def L2_norm(u):
-    J_form = fem.form(ufl.inner(u, u) * ufl.dx)
-    local_val = fem.assemble_scalar(J_form)
-    global_val = u.function_space.mesh.comm.allreduce(local_val, op=MPI.SUM)
-    return np.sqrt(global_val)
-
 
 
 class Vol:
@@ -116,6 +48,13 @@ class Vol:
         dt = (self.t_1 - self.t_0) / len(self.a)
         idx = int((t - self.t_0) / dt)
         return idx
+    
+    def update(self, V, a_vec):
+        dof_size = V.dofmap.index_map.size_global
+        for i, func in enumerate(self.a):
+            start = i * dof_size
+            end = (i + 1) * dof_size
+            func.x.array[:] = a_vec[start:end]
 
 
 
@@ -156,6 +95,7 @@ if __name__ == "__main__":
     dt = (t_1 - t_0) / M_time
     g, _ = compute_Af(a_true, f.copy(), dt, M_time, V, r, y_0, y_1, t_0, psi_1, psi_2)
 
+    # Add noise to f and g
     f = add_noise(f, 0.0005)
     g = add_noise(g, 0.0005)
 
@@ -167,8 +107,6 @@ if __name__ == "__main__":
     # a_k.interpolate(lambda x: 0.5 * sigma_true(x)**2)
     a_k = Vol(V, a_k, t_0, t_1, N=M_time)
     a_vec_init = np.concatenate([func.x.array for func in a_k.a])
-
-    # print(f"Initial Cost: {L2_norm(compute_Af(a_k, f, dt, M_time, V, r, y_0, y_1, t_0, psi_1, psi_2)[0] - g):.6f}")
 
     # Optimization
     print("Starting Optimization...")
@@ -183,14 +121,8 @@ if __name__ == "__main__":
         bounds=bounds,
         options={'disp': True, 'maxiter': 20}
     )
-    
     print(f"Optimization Complete. Final Cost: {res.fun:.6f}")
 
-    dof_size = V.dofmap.index_map.size_global
-    for i, func in enumerate(a_k.a):
-        start = i * dof_size
-        end = (i + 1) * dof_size
-        func.x.array[:] = res.x[start:end]
-
     # Plot
+    a_k.update(V, res.x)
     plot_calibration_result_3d(a_k, V, t_0, t_1, title=f"Calibrated Volatility")

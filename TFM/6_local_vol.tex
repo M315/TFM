@@ -216,8 +216,108 @@ If $a = a(y)$, the gradient of the objective function with respect to $a$ is giv
 
 \subsubsection{Algorithm}
 
+As mentioned before the time dimension is not used in this procedure,
+instead what we do is discretize the time from $t$ to $T$ into intervals and forward propagate the function $u$ using $A_f$ for each interval,
+then we compute the residual with respect to $g$ at $T$ and use the backpropagation operator to compute the gradients for each interval,
+backwards, and use them to update the parameter $a$.
+The calibration algorithm proceeds as follow:
+
+\begin{algorithmic}
+    \State Set the functional spaces for $a$ and $u$.
+    \State Set the boundary and initial conditions for the forward problem.
+    \State Initialize the volatility parameter $a$.
+    \State Compute the target option price function $g(y)$ from market data.
+    \While{$\| u_a(y) - g(y) \| > tolerance$}
+        \State $u_a \gets A_f(a)$
+        \State $\nabla_{a}^{*} \gets A'_f(a)^{*}(u_a - g)$
+        \State $a \gets$ Update $a$ using gradient descent step.
+    \EndWhile
+\end{algorithmic}
 
 \subsubsection{Practial implementation}
+
+We have implemented the calibration algorithm in \textit{Python} using the \textit{FENICS} library,
+so we use finite elements to solve the forward and backward PDEs.
+
+Also we used \textit{scipy} to implement the optimization algorithm,
+in particular we used the \textit{L-BFGS-B} algorithm to perform the minimization of the objective function.
+
+First we needed to transform the PDEs into their variational forms,
+we multiply the equation $(\ref{eq:inverse_pde_1})$ by a test function $v \in H^1_0(\Omega)$ and integrate over $\Omega$,
+\begin{equation*}
+    \int_{\alpha}^{\beta} u_\tau v dy
+        = \int_{\alpha}^{\beta} a u_{yy} v dy 
+        - \int_{\alpha}^{\beta} (a + r - q) u_y dy
+        + \int_{\alpha}^{\beta} q u v dy.
+\end{equation*}
+Using that $(a u_y)_y = a u_{yy} + a_y u_y$ we can rewrite the second order as,
+\begin{equation*}
+    - \int_{\alpha}^{\beta} a u_{yy} v dy 
+        = \int_{\alpha}^{\beta} a_y u_y v dy,
+        - \int_{\alpha}^{\beta} (a u_y)_y v dy
+\end{equation*}
+then integrating by parts,
+\begin{equation*}
+    - \int_{\alpha}^{\beta} (a u_y)_y v dy
+        = \int_{\alpha}^{\beta} a u_y v_y dy
+        - \left[ a u_y v \right]_{\alpha}^{\beta},
+\end{equation*}
+since $v \in H^1_0(\Omega)$ the boundary terms vanish, $\left[ a u_y v \right]_{\alpha}^{\beta} = 0$.
+Moreover for practical implementation we would like to avoid the derivative with respect to $\tau$,
+as we will use discrete time increments,
+so we can rewrite the left hand side as,
+\begin{equation*}
+    \int_{\alpha}^{\beta} u_\tau v dy
+        = \int_{\alpha}^{\beta} \frac{\partial u}{\partial \tau} v dy + \int_{\alpha}^{\beta} u \frac{\partial v}{\partial \tau} dy
+        = \frac{d}{d \tau} \int_{\alpha}^{\beta} u v dy,
+\end{equation*}
+as $v$ does not depend on $\tau$, $\frac{\partial v}{\partial \tau} = 0$.
+Thus the variational form of the forward equation is given by,
+\begin{equation}\label{eq:variational_forward_eq}
+    \frac{d}{d \tau} \int_{\alpha}^{\beta} u v dy
+        = \int_{\alpha}^{\beta} a u_y v_y dy
+        + \int_{\alpha}^{\beta} (a + r - q) u_y v dy
+        - \int_{\alpha}^{\beta} q u v dy.
+\end{equation}
+
+For equation $(\ref{eq:adjoint_pde})$,
+we proceed as before,
+multiplying by a test function $v \in H^1_0(\Omega)$ and integrating over $\Omega$,
+\begin{equation*}
+    \int_{\alpha}^{\beta} m_\tau v dy
+    = \int_{\alpha}^{\beta} (a m)_{yy} v dy
+    + \int_{\alpha}^{\beta} (a m)_y v dy
+    + \int_{\alpha}^{\beta} (r - q) m_y v dy,
+\end{equation*}
+then we integrate by parts the second order term,
+\begin{equation*}
+    \int_{\alpha}^{\beta} (a m)_{yy} v dy
+        = - \int_{\alpha}^{\beta} (a m)_y v_y dy
+        + \left[ (a m)_y v \right]_{\alpha}^{\beta},
+\end{equation*}
+the boundary term vanishes since $v \in H^1_0(\Omega)$.
+And for the first order terms we have,
+\begin{equation*}
+    \int_{\alpha}^{\beta} (a m)_y v dy
+        = - \int_{\alpha}^{\beta} a m v_y dy
+        + \left[ a m v \right]_{\alpha}^{\beta},
+\end{equation*}
+as before the boundary term vanishes.
+We do the same treatment for the last term,
+\begin{equation*}
+    \int_{\alpha}^{\beta} (r - q) m_y v dy
+        = - \int_{\alpha}^{\beta} (r - q) m v_y dy.
+\end{equation*}
+So,
+also using the same treatment for $m_\tau$ as we did before,
+the variational form of the adjoint equation is given by,
+\begin{equation}\label{eq:variational_adjoint_eq}
+    \frac{d}{d \tau} \int_{\alpha}^{\beta} m v dy
+        = - \int_{\alpha}^{\beta} (a m)_y v_y dy
+        - \int_{\alpha}^{\beta} a m v_y dy
+        - \int_{\alpha}^{\beta} (r - q) m v_y dy.
+\end{equation}
+
 
 \subsubsection{Numerical results}
 
