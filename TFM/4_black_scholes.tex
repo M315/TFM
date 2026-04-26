@@ -49,7 +49,7 @@ For a further discussion on replication, and its applications in finance, we rec
 
 % Weak and strong replication?
 
-Will show two examples of static replication from \cite{steele_stochastic}
+We will show two examples of static replication from \cite{steele_stochastic}
 that will be useful to understand the Black-Scholes model.
 
 \subsubsection{Example: Forward contract}
@@ -72,7 +72,7 @@ so either we have
 \end{equation*}
 or there is an arbitrage opportunity.
 
-We have found the price of the forward contract by replicating its cashflows, using the underlying assed and the risk-free rate,
+We have found the price of the forward contract by replicating its cashflows, using the underlying asset and the risk-free rate,
 plus arguing that there should not be an arbitrage opportunity.
 
 \subsubsection{Example: Put-Call parity}
@@ -179,13 +179,13 @@ Then the value of the portfolio at any time $t$ is given by:
 
 We need this portfolio to have the same payoff as the option at time $T$, so
 \begin{equation*}
-    V_T = \max{S_T - K, 0}.
+    V_T = \max(S_T - K, 0).
 \end{equation*}
 
 As the portfolio is dynamically replicating the option,
 the cashflow of the portfolio must match the ones of the option,
 these are the payoff as seen before, and the initial payment,
-so no cash must came in or out of the portfolio at any time between $t$ and $T$.
+so no cash must come in or out of the portfolio at any time between $t$ and $T$.
 This means that the portfolio must be \textit{self-financing},
 so the rebalanced must come from selling the underlying asset and buying the bond, or vice versa.
 This is expressed mathematically as
@@ -197,7 +197,7 @@ which can be extended to
     dV_t = \left( a_t \mu S_t + b_t r \beta_t \right) dt + a_t \sigma S_t dW_t.
 \end{equation*}
 
-Now as the value of the replicanting portfolio $V_t$ should be equal to the value of the option at any time $t$,
+Now as the value of the replicating portfolio $V_t$ should be equal to the value of the option at any time $t$,
 we assume that this can be expressed by a function $f(t, S_t)$,
 depending only on the time $t$ and the price of the underlying asset $S_t$.
 Thus applying Ito's formula we have that
@@ -244,9 +244,11 @@ which is the \textbf{Black-Scholes PDE}.
 \subsection{Pricing - Solving the Black-Scholes PDE}
 
 There is an analytical solution to the Black-Scholes PDE.
-See \cite{steele_stochastic} for a more detailed derivation.
+Our derivation follows the approach of \cite[Ch. 11.4]{steele_stochastic},
+adapted to log-moneyness coordinates $x = \ln(S/K)$ instead of the log-price $\ln S$ used there;
+the two differ only by the constant shift $\ln K$ and the subsequent reduction to the heat equation is structurally identical.
 
-Start a change of variables.
+Start by change of variables.
 Let $\tau = T - t$ be the time to maturity,
 and $x = \ln{\left( \frac{S}{K} \right)}$ be the log-moneyness.
 We define a new function $u(\tau, x) = f(t, S)$ so the Black-Scholes PDE is transformed to,
@@ -315,47 +317,84 @@ Now we can solve the equation using the heat operator,
         = \int^{\infty}_{-\infty} v(y, 0) k(\sigma^2; \tau, x- y)  dy,
         % = \frac{1}{2\sqrt{\pi \sigma^2 \tau}} \int^{\infty}_{-\infty} v(y, 0) e^{-\frac{(x- y)^2}{4 \sigma^2 \tau}} dy
 \end{equation*}
-where the function $k$ is the heat kernel,
-using the initial condition we get,
+where the function $k$ is the \textit{heat kernel},
+i.e. the fundamental solution of the heat equation $v_\tau = \lambda v_{xx}$, given by
+\begin{equation}\label{eq:heat_kernel}
+    k(\lambda; t, x)
+        := \frac{1}{\sqrt{4 \lambda \pi t}} \exp\left( -\frac{x^2}{4 \lambda t} \right),
+\end{equation}
+see \cite[Ch. 11.4]{steele_stochastic}.
+Using the initial condition we get,
 \begin{equation*}
     v(x, \tau)
-        = \int^{\infty}_{0} K e^{-\alpha y} (e^y - 1) k(\sigma^2; \tau, x- y)  dy,
+        = \int^{\infty}_{0} K e^{-\alpha y} (e^y - 1) k(\frac{\sigma^2}{2}; \tau, x- y)  dy,
         % = \frac{1}{2\sqrt{\pi \sigma^2 \tau}} \int^{\infty}_{0} K e^{-\alpha x} (e^x - 1) e^{-\frac{(x- y)^2}{4 \sigma^2 \tau}} dy
 \end{equation*}
 this leaves us with two integrals
 \begin{equation*}
 \begin{aligned}
-    & I_1 = K \int^{\infty}_{0} e^{(1 - \alpha) y} k(\sigma^2; \tau, x- y)  dy, \\
-    & I_2 = - K \int^{\infty}_{0} e^{-\alpha y} k(\sigma^2; \tau, x- y)  dy, \\
+    & I_1 = K \int^{\infty}_{0} e^{(1 - \alpha) y} k(\frac{\sigma^2}{2}; \tau, x- y)  dy, \\
+    & I_2 = - K \int^{\infty}_{0} e^{-\alpha y} k(\frac{\sigma^2}{2}; \tau, x- y)  dy, \\
 \end{aligned}
 \end{equation*}
 if we make a change of variable, $s = x - y$, then
 \begin{equation*}
 \begin{aligned}
-    & I_1 = K e^{(1 - \alpha) x} \int^{x}_{\infty} e^{-(1 - \alpha) s} k(\sigma^2; \tau, s)  ds, \\
-    & I_2 = - K e^{-\alpha x} \int^{x}_{\infty} e^{\alpha s} k(\sigma^2; \tau, s)  ds. \\
+    & I_1 = K e^{(1 - \alpha) x} \int^{x}_{-\infty} e^{-(1 - \alpha) s} k(\frac{\sigma^2}{2}; \tau, s)  ds, \\
+    & I_2 = - K e^{-\alpha x} \int^{x}_{-\infty} e^{\alpha s} k(\frac{\sigma^2}{2}; \tau, s)  ds. \\
 \end{aligned}
 \end{equation*}
 
-We will use the following identity to compute the integral,
-\begin{equation*}
-    \int^{\alpha}_{-\infty} k(\sigma^2, \tau, s) e^{-\beta s} ds 
-        = e^{\frac{\beta^2 \sigma^2 \tau}{2}} \Phi \left(\frac{\alpha}{\sigma \sqrt{\tau}} + \beta \sigma \sqrt{\tau}\right),
-\end{equation*}
-where $\Phi$ is the gaussian cumulative function.
-Thus using it in our integrals and substituting back to $u = e^{\alpha x + \beta \tau} v$,
+To evaluate both integrals we use the following identity,
+whose proof is a standard completion of the square.
+\begin{lemma}\label{lem:heat_kernel_identity}
+    Let $\Phi$ denote the standard Gaussian cumulative distribution function,
+    \begin{equation*}
+        \Phi(z) = \frac{1}{\sqrt{2 \pi}} \int^{z}_{-\infty} e^{-u^2/2} du.
+    \end{equation*}
+    Then for any $a, b \in \R$ and $\sigma, \tau > 0$,
+    \begin{equation}\label{eq:heat_kernel_identity}
+        \int^{a}_{-\infty} k(\frac{\sigma^2}{2}; \tau, s) e^{-b s} ds
+            = e^{\frac{b^2 \sigma^2 \tau}{2}} \Phi \left(\frac{a}{\sigma \sqrt{\tau}} + b \sigma \sqrt{\tau}\right).
+    \end{equation}
+\end{lemma}
+\begin{proof}
+    Completing the square in the exponent of the integrand,
+    \begin{equation*}
+        -\frac{s^2}{2 \sigma^2 \tau} - b s
+            = -\frac{(s + b \sigma^2 \tau)^2}{2 \sigma^2 \tau} + \frac{b^2 \sigma^2 \tau}{2},
+    \end{equation*}
+    so pulling out the constant factor and applying the change of variable $u = (s + b \sigma^2 \tau)/(\sigma \sqrt{\tau})$,
+    \begin{equation*}
+    \begin{aligned}
+        \int^{a}_{-\infty} k(\tfrac{\sigma^2}{2}; \tau, s) e^{-b s} ds
+            & = e^{\frac{b^2 \sigma^2 \tau}{2}} \int^{a}_{-\infty} \frac{1}{\sqrt{2 \pi \sigma^2 \tau}} \exp\left( -\frac{(s + b \sigma^2 \tau)^2}{2 \sigma^2 \tau} \right) ds \\
+            & = e^{\frac{b^2 \sigma^2 \tau}{2}} \int^{\frac{a + b \sigma^2 \tau}{\sigma \sqrt{\tau}}}_{-\infty} \frac{1}{\sqrt{2 \pi}} e^{-u^2/2} du
+            = e^{\frac{b^2 \sigma^2 \tau}{2}} \Phi \left( \frac{a}{\sigma \sqrt{\tau}} + b \sigma \sqrt{\tau} \right).
+    \end{aligned}
+    \end{equation*}
+\end{proof}
+Applying Lemma \ref{lem:heat_kernel_identity} to $I_1$ (with $a = x$, $b = -(1 - \alpha)$) and to $I_2$ (with $a = x$, $b = \alpha$),
+and substituting back to $u = e^{\alpha x + \beta \tau} v$,
 we get
 \begin{equation*}
 \begin{aligned}
-    & I'_1 = K \exp \left( \alpha x + \beta \tau + (1 + \alpha) x + \frac{(1 - \alpha)^2 \sigma^2 \tau}{2} \right) \Phi(d_1), \\
-    & I'_2 = K \exp \left( \alpha x + \beta \tau - \alpha x + \frac{\alpha^2 \sigma^2 \tau}{2} \right) \Phi(d_2), \\
+    & I_1 \Rightarrow I_3 = K \exp \left( \alpha x + \beta \tau + (1 - \alpha) x + \frac{(1 - \alpha)^2 \sigma^2 \tau}{2} \right) \Phi(d_1), \\
+    & I_2 \Rightarrow I_4 = - K \exp \left( \alpha x + \beta \tau - \alpha x + \frac{\alpha^2 \sigma^2 \tau}{2} \right) \Phi(d_2), \\
+\end{aligned}
+\end{equation*}
+where
+\begin{equation*}
+\begin{aligned}
+    & d_1 = \frac{x}{\sigma \sqrt{\tau}} + (1 - \alpha) \sigma \sqrt{\tau}, \\
+    & d_2 = \frac{x}{\sigma \sqrt{\tau}} - \alpha \sigma \sqrt{\tau} = d_1 - \sigma \sqrt{\tau}, \\
 \end{aligned}
 \end{equation*}
 rearranging and simplifying the expressions
 \begin{equation*}
 \begin{aligned}
-    & I'_1 = K \exp \left( x + \left( \beta + \frac{(1 - \alpha)^2 \sigma^2}{2} \right) \tau \right) \Phi(d_1), \\
-    & I'_2 = K \exp \left( \left( \beta + \frac{\alpha^2 \sigma^2}{2} \right) \tau \right) \Phi(d_2), \\
+    & I_3 = K \exp \left( x + \left( \beta + \frac{(1 - \alpha)^2 \sigma^2}{2} \right) \tau \right) \Phi(d_1), \\
+    & I_4 = - K \exp \left( \left( \beta + \frac{\alpha^2 \sigma^2}{2} \right) \tau \right) \Phi(d_2), \\
 \end{aligned}
 \end{equation*}
 the exponent of the first term simplifies to
@@ -364,37 +403,160 @@ the exponent of the first term simplifies to
         = x + \frac{1}{2 \sigma^2} \left( - \left( r + \frac{1}{2} \sigma^2 \right)^2 + \left(r + \frac{1}{2}\sigma^2\right)^2 \right) \tau
         = x,
 \end{equation*}
-and for the second one we use that while deriving $\beta$,
-we found
+and for the second one we use the fact that while deriving $\beta$,
+on the second equality we found
 \begin{equation*}
     \beta 
         = \frac{1}{2} \alpha \left( r - \frac{1}{2} \sigma^2 \right) - r
-        = \frac{\sigma^2}{2} \alpha \frac{1}{\sigma^2}\left( r - \frac{1}{2} \sigma^2 \right) - r
-        = - \frac{\sigma^2}{2} \alpha^2 - r,
 \end{equation*}
-thus
+multiplying by $1 = \frac{\sigma^2}{\sigma^2}$ and rearranging we get
 \begin{equation*}
-    I'_1 = K e^x \Phi(d_1), \quad
-    I'_2 = K e^{-r \tau} \Phi(d_2).
+    \beta 
+        = \frac{\sigma^2}{2} \alpha \frac{1}{\sigma^2}\left( r - \frac{1}{2} \sigma^2 \right) - r
+\end{equation*}
+and using the definition of $\alpha$ we get
+\begin{equation*}
+    \beta 
+        = - \frac{\sigma^2}{2} \alpha^2 - r.
+\end{equation*}
+Thus
+\begin{equation*}
+\begin{aligned}
+    & I_3 = K e^x \Phi(d_1), \\
+    & I_4 = - K e^{-r \tau} \Phi(d_2). \\
+\end{aligned}
 \end{equation*}
 
-Finally reverting the first change of variables from $f$ to $u$,
-where $\tau = T - t$ and $x = \ln{\left( \frac{S}{K} \right)}$ we get the \textbf{Black-Scholes formula}
+Finally, reverting the substitutions $\tau = T - t$ and $x = \ln(S/K)$ we get the \textbf{Black-Scholes formula}
 \begin{equation} \label{eq:black_scholes_formula}
     f(t, S) = S \Phi(d_1) - K e^{-r (T - t)} \Phi(d_2),
 \end{equation}
 where
 \begin{equation*}
-    d_1 = 
-        \frac{1}{\sigma \sqrt{T - t}} 
-        \left(
-            \ln \left( \frac{S}{K} \right) 
-            + \left( r + \frac{\sigma^2}{2} \right) (T - t) 
-        \right),
+\begin{aligned}
+    d_1 
+        & = \frac{\ln{\left( \frac{S}{K} \right)}}{\sigma \sqrt{T - t}} + (1 - \alpha) \sigma \sqrt{T - t} \\
+        & = \frac{\ln{\left( \frac{S}{K} \right)}}{\sigma \sqrt{T - t}} + \left(1 + \frac{1}{\sigma^2}\left(r - \frac{1}{2} \sigma^2\right)\right) \sigma \sqrt{T - t} \\
+        & = \frac{\ln{\left( \frac{S}{K} \right)}}{\sigma \sqrt{T - t}} + \left(\frac{1}{\sigma^2}\left(\sigma^2 + r - \frac{1}{2} \sigma^2\right)\right) \sigma \sqrt{T - t} \\
+        & = \frac{1}{\sigma \sqrt{T - t}} \left( \ln{\left( \frac{S}{K} \right)} + \left( r + \frac{1}{2} \sigma^2 \right) (T - t) \right), \\
+\end{aligned}
 \end{equation*}
+and, of course
 \begin{equation*}
-    d_2 = d_1 - \sigma \sqrt{T - t}.
+\begin{aligned}
+    d_2 
+        & = d_1 - \sigma \sqrt{T - t} \\
+        & = \frac{1}{\sigma \sqrt{T - t}} \left( \ln{\left( \frac{S}{K} \right)} + \left( r - \frac{1}{2} \sigma^2 \right) (T - t) \right). \\
+\end{aligned}
 \end{equation*}
 
 
 \subsection{Calibration - Implied volatility}
+
+The Black-Scholes formula \eqref{eq:black_scholes_formula} gives the call price as a function of
+market observables $(t, S, r)$, contract parameters $(K, T)$, and the single volatility parameter $\sigma$.
+In practice, market prices $C^{\mathrm{mkt}}(K, T)$ are observable for a range of strikes and maturities,
+and the question is: which value of $\sigma$ is implied by each observed price?
+
+\begin{definition}[Implied volatility]
+    Given a market price $C^{\mathrm{mkt}}$ for a European call with strike $K$ and maturity $T$,
+    the \textbf{implied volatility} $\hat{\sigma}(K, T)$ is the unique $\sigma > 0$ such that
+    \begin{equation}\label{eq:implied_vol}
+        C_{\mathrm{BS}}\!\left(t, S;\, K, T,\, \hat{\sigma}\right) = C^{\mathrm{mkt}},
+    \end{equation}
+    where $C_{\mathrm{BS}}$ denotes the Black-Scholes formula \eqref{eq:black_scholes_formula}.
+\end{definition}
+
+Uniqueness follows from strict monotonicity of the call price in $\sigma$.
+To see this we compute the \textit{vega} of the option, $\mathcal{V} := \partial C_{\mathrm{BS}} / \partial \sigma$.
+
+Write $\tau = T - t$ for brevity and note that $d_1$ and $d_2$ both depend on $\sigma$.
+Splitting $d_1$ into its two terms makes differentiation straightforward,
+\begin{equation*}
+    d_1 = \frac{\ln(S/K) + r\tau}{\sigma\sqrt{\tau}} + \frac{1}{2}\sigma\sqrt{\tau},
+\end{equation*}
+so
+\begin{equation}\label{eq:dd1_dsigma}
+    \frac{\partial d_1}{\partial \sigma}
+        = -\frac{\ln(S/K) + r\tau}{\sigma^2\sqrt{\tau}} + \frac{\sqrt{\tau}}{2}.
+\end{equation}
+Since $d_2 = d_1 - \sigma\sqrt{\tau}$,
+\begin{equation}\label{eq:dd2_dsigma}
+    \frac{\partial d_2}{\partial \sigma}
+        = \frac{\partial d_1}{\partial \sigma} - \sqrt{\tau}
+        = -\frac{\ln(S/K) + r\tau}{\sigma^2\sqrt{\tau}} - \frac{\sqrt{\tau}}{2}.
+\end{equation}
+In particular,
+\begin{equation}\label{eq:dd1_minus_dd2}
+    \frac{\partial d_1}{\partial \sigma} - \frac{\partial d_2}{\partial \sigma} = \sqrt{\tau}.
+\end{equation}
+
+Differentiating \eqref{eq:black_scholes_formula} with the chain rule gives
+\begin{equation*}
+    \frac{\partial C_{\mathrm{BS}}}{\partial \sigma}
+        = S\,\phi(d_1)\,\frac{\partial d_1}{\partial \sigma}
+          - K e^{-r\tau}\phi(d_2)\,\frac{\partial d_2}{\partial \sigma},
+\end{equation*}
+where $\phi(z) = \frac{1}{\sqrt{2\pi}}e^{-z^2/2}$ is the standard Gaussian density.
+The two terms simplify if we use the identity
+\begin{equation}\label{eq:vega_identity}
+    S\,\phi(d_1) = K e^{-r\tau}\phi(d_2).
+\end{equation}
+To verify it, note that $d_1 - d_2 = \sigma\sqrt{\tau}$ and $d_1 + d_2 = 2(\ln(S/K) + r\tau)/(\sigma\sqrt{\tau})$,
+so
+\begin{equation*}
+    d_1^2 - d_2^2 = (d_1 - d_2)(d_1 + d_2) = 2\ln(S/K) + 2r\tau.
+\end{equation*}
+Therefore, since the $1/\sqrt{2\pi}$ factors cancel in the ratio,
+\begin{equation*}
+    \frac{\phi(d_2)}{\phi(d_1)}
+        = \frac{e^{-d_2^2/2}}{e^{-d_1^2/2}}
+        = e^{(d_1^2 - d_2^2)/2}
+        = \exp\!\left(\ln\frac{S}{K} + r\tau\right)
+        = \frac{S}{K}e^{r\tau},
+\end{equation*}
+which is exactly \eqref{eq:vega_identity}.
+Applying it and using \eqref{eq:dd1_minus_dd2},
+\begin{equation}\label{eq:bs_vega}
+    \mathcal{V} := \frac{\partial C_{\mathrm{BS}}}{\partial \sigma}
+        = S\,\phi(d_1)
+          \left(\frac{\partial d_1}{\partial \sigma} - \frac{\partial d_2}{\partial \sigma}\right)
+        = S\sqrt{T - t}\,\phi(d_1) > 0.
+\end{equation}
+Since $\mathcal{V} > 0$, the map $\sigma \mapsto C_{\mathrm{BS}}(\sigma)$ is a strictly increasing bijection
+from $(0, \infty)$ onto the no-arbitrage interval
+$\bigl(\max(S - Ke^{-r(T-t)}, 0),\, S\bigr)$,
+so the implied volatility exists and is unique for any market price in this range.
+
+Since \eqref{eq:implied_vol} has no closed-form solution in $\sigma$,
+the implied volatility is computed numerically.
+The smoothness and strict positivity of $\mathcal{V}$ make Newton's method an efficient choice:
+starting from an initial guess $\sigma^{(0)} > 0$, one iterates
+\begin{equation}\label{eq:newton_iv}
+    \sigma^{(n+1)} = \sigma^{(n)} - \frac{C_{\mathrm{BS}}(\sigma^{(n)}) - C^{\mathrm{mkt}}}{\mathcal{V}(\sigma^{(n)})},
+\end{equation}
+until $\lvert C_{\mathrm{BS}}(\sigma^{(n)}) - C^{\mathrm{mkt}}\rvert < \varepsilon$.
+
+\subsubsection{The implied volatility surface}
+
+If Black-Scholes with a single $\sigma$ perfectly described the market,
+every option on the same underlying would yield the same implied volatility.
+In practice, the map $(K, T) \mapsto \hat{\sigma}(K, T)$ is non-trivial,
+and the resulting object is called the \textbf{implied volatility surface}.
+
+Two features of this surface are well documented in the literature, see \cite{derman_vol_smile}:
+\begin{itemize}
+    \item \textbf{Volatility skew}: for a fixed maturity $T$,
+          equity index options exhibit a pronounced \textit{negative skew}:
+          implied volatility increases as the strike decreases relative to the spot.
+          This reflects the demand for downside protection and the asymmetry of return distributions.
+    \item \textbf{Term structure}: for a fixed strike,
+          implied volatility varies with maturity,
+          reflecting the market's expectation of future realized volatility at different horizons.
+\end{itemize}
+
+The non-flatness of the surface is direct empirical evidence that constant-$\sigma$ Black-Scholes
+is inconsistent with observed market prices.
+This motivates more flexible models such as the \textit{local volatility model},
+which replaces $\sigma$ by a deterministic function $\sigma(t, S)$ calibrated to reproduce the full surface exactly,
+as described in the following section.
