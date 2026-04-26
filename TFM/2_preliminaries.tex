@@ -18,7 +18,7 @@ The foundation of modern probability theory is based on measure theory.
     A \textbf{$\sigma$-algebra} $\F$ on a set $\Omega$ is a collection of subsets of $\Omega$ that
     \begin{itemize}
         \item $\Omega \in \F$
-        \item if $A \in \F$ then $X \setminus A \in \F$
+        \item if $A \in \F$ then $\Omega \setminus A \in \F$
         \item if $A_1, A_2, \ldots \in \F$ then $\bigcup_{i = 1}^{\infty} A_i \in \F$
     \end{itemize}
 \end{definition}
@@ -62,9 +62,9 @@ For a more details in probability theory and stochastic processes, see \cite{kal
 \end{definition}
 
 If the set $T$ is countable then the stochastic process is said to be \textit{discrete},
-if $T$ is some interval of $\R$ the is \textit{continuous}.
+if $T$ is some interval of $\R$ then it is \textit{continuous}.
 
-An intuitive way to understand stochastic processes is to consider what is $X(t, \omega)$ whan $t$ or $\omega$ is fixed.
+An intuitive way to understand stochastic processes is to consider what is $X(t, \omega)$ when $t$ or $\omega$ is fixed.
 If we fix $t \in T$ then the map
 \begin{equation*}
     \omega \rightarrow X_t(\omega),
@@ -82,18 +82,18 @@ A \textbf{filtration} is a family of $\sigma$-algebras $\{ \F_t \}_{t \in T}$ in
 such that $\F_s \subseteq \F_t$ for all $s \leq t$, where $s, t \in T$.
 \end{definition}
 
-The idea is that a filtration $\F_t$ represents the information available form the past of an stochastic process up to time $t$.
+The idea is that a filtration $\F_t$ represents the information available from the past of an stochastic process up to time $t$.
 Thus we define a \textbf{filtered probability space} as a probability space with a filtration $(\Omega, \F, \{ \F_t \}_{t \in T}, P)$.
 
 \begin{definition}[Adapted process]
     Let $X_t$ be a stochastic process on a filtered probability space $(\Omega, \F, \{ \F_t \}_{t \in T}, P)$.
     The process is \textbf{adapted} to the filtration $\{ \F_t \}_{t \in T}$ 
     if, for every $t \in T$,
-    the random variable $X_t$ is $F_t$-measurable.
+    the random variable $X_t$ is $\F_t$-measurable.
 \end{definition}
 
 The idea of an adapted process is key when modeling using stochastic processes,
-as it ensures that the process is at time $t$ only depends on the information available up to that time,
+as it ensures that the process at time $t$ depends only on the information available up to that time,
 but not on future information.
 
 \subsubsection{Martingales}
@@ -105,17 +105,17 @@ the best prediction for the future is simply the present value.
 
 \begin{definition}[Martingale]
     A stochastic process ${X}_{t}$ where $t \in T$ is called a \textbf{martingale}
-    with respect to a filtration ${F}_{t}$ if it satisfies the following conditions:
+    with respect to a filtration $\{\F_t\}_{t \in T}$ if it satisfies the following conditions:
     \begin{enumerate}
         \item $E[|X_t|] < \infty$, for each $t \in T$ 
         \item $X_t$ is measurable with respect to $\F_t$ for each $t \in T$
         \item If $X_t$ is discrete
             \begin{equation*}
-                E[X_{t + 1} | F_t] = X_t \quad \forall t \in \N,
+                \E[X_{t + 1} | \F_t] = X_t \quad \forall t \in \N,
             \end{equation*}
             if $X_t$ is continuous
             \begin{equation*}
-                E[X_t | F_s] = X_s \quad \forall s \leq t.
+                \E[X_t | \F_s] = X_s \quad \forall s \leq t.
             \end{equation*}
     \end{enumerate}
 \end{definition}
@@ -137,21 +137,22 @@ Formally, a Brownian motion $\{ W_t \}_{(t \geq 0)}$ is defined by the following
     \item The map $t \rightarrow W_t(\omega)$ is almost surely continuous
 
     \item $W_t$ has independent increments,
-        i.e. For $t_1 < t_2 < t_3 < t_4$, $W_{t_2} - W_{t_2}$ and $W_{t_4} - W_{t_4}$ are independent random variables
+        i.e. for $t_1 < t_2 < t_3 < t_4$, $W_{t_2} - W_{t_1}$ and $W_{t_4} - W_{t_3}$ are independent random variables
 
     \item $W_t$ has gaussian increments,
         i.e. $W_t - W_s \sim \mathcal{N}(0, t-s)$ for $0 \leq s \leq t$
 \end{enumerate}
-where $\mathcal{N}(\mu, \sigma)$ is the normal distribution with mean $\mu$ and variance $\sigma$.
+where $\mathcal{N}(\mu, \sigma^2)$ denotes the normal distribution with mean $\mu$ and variance $\sigma^2$.
 
 The Brownian motion has some key features that will need afterwards,
 for example it can be shown that the paths $t \rightarrow W_t(\omega)$ although are almost surely continuous,
 they are nowhere differentiable.
 
-Also the it can be shown that the Wiener process is an almost surely continuous martingale,
-and its quadratic variation is $\lbrace W_t, W_t \rbrace = t$.
-This two properties along $W_0 = 0$ form an equivalent definition of the Wiener process,
-called the Levy's characterization.
+Also it can be shown that the Wiener process is an almost surely continuous martingale
+with quadratic variation $[W, W]_t = t$.
+These two properties together with $W_0 = 0$ form an equivalent definition of the Wiener process,
+known as Lévy's characterization.
 
-In \cite{morters_peres_brownian_motion} there are profs of this properties and the equivalence between the tow definitions,
-also there is a prof of the existence of the Brownian motion.
+Proofs of these properties, the equivalence between the two definitions,
+and the existence of Brownian motion can be found in \cite{morters_peres_brownian_motion}
+and \cite[Ch.~2]{oksendal_sde}.
