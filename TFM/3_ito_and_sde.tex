@@ -7,24 +7,22 @@
 
 \section{Stochastic calculus}
 
-We would model the dynamics of the value of a financial asset,
+To model the dynamics of a financial asset's value,
 an ordinary differential equation of the form
 \begin{equation*}
-    \frac{dS_t}{dt} = f(t, S_t),
+    \frac{dS_t}{dt} = f(t, S_t)
 \end{equation*}
-would not be sufficient to capture the randomness present in the financial data.
-
-Stochastic differential equations (SDEs) are similar to ODEs,
-but include a stochastic term that allows for modeling the random fluctuations,
+is insufficient: it cannot capture the random fluctuations inherent in financial data.
+Stochastic differential equations (SDEs) add a noise term to handle this,
 \begin{equation}\label{eq:sde}
-    \frac{dS_t}{dt} = f(t, S_t) + \sigma(t, S_t) W_t,
+    dS_t = f(t, S_t)\, dt + \sigma(t, S_t)\, dW_t,
 \end{equation}
-where the term $W_t$ is a stochastic process.
-Notice that \eqref{eq:sde} can be written in a integration notation as
+where $W_t$ is a Brownian motion.
+In integral form this reads
 \begin{equation}\label{eq:int_sde}
-    S_t = S_0 \int^{t}_{0} f(t, S_t) dt + \int^{t}_{0} \sigma(t, S_t) dW_t,
+    S_t = S_0 + \int^{t}_{0} f(s, S_s)\, ds + \int^{t}_{0} \sigma(s, S_s)\, dW_s,
 \end{equation}
-thus a key part of SDEs is defining the last term which is called stochastic integral.
+thus a key step is to give rigorous meaning to the stochastic integral $\int \sigma\, dW_s$.
 
 The most well known process that has a well defined stochastic integral is the Wiener process or Brownian motion,
 this stochastic integral is known as the Ito integral and will allow us to have the machinery to study SDEs and thus model the dynamics of financial assets.
@@ -34,7 +32,7 @@ this stochastic integral is known as the Ito integral and will allow us to have 
 \begin{definition}\label{def:ito_integral_reqs}
     Let $\mathcal{V} = \mathcal{V}(S, T)$ the class of functions
     \begin{equation*}
-        f(t, \omega): [0, \infty) \time \Omega \to \R,
+        f(t, \omega): [0, \infty) \times \Omega \to \R,
     \end{equation*}
     such that
     \begin{itemize}
@@ -44,11 +42,11 @@ this stochastic integral is known as the Ito integral and will allow us to have 
     \end{itemize}
 \end{definition}
 
-We will start by defining the Ito intregral for \textit{elementary functions},
+We will start by defining the Itô integral for \textit{elementary functions},
 then this can be extended to functions in $\mathcal{V}$.
 
 \begin{definition}
-    A function $\phi$ is called \textit{elementary} if it has de form
+    A function $\phi$ is called \textit{elementary} if it has the form
     \begin{equation*}
         \phi(t, \omega) = \sum_{j} e_j(\omega) \1_{[t_j, t_{j + 1})}(t).
     \end{equation*}
@@ -56,7 +54,7 @@ then this can be extended to functions in $\mathcal{V}$.
 
 For elementary functions we define the Ito integral as
 \begin{equation*}
-    \int^{T}_{S} \phi(t, \omega) dW_y(\omega) = \sum_{j} e_j(\omega) \left[ B_{t_{j + 1}} - B_{t_{j}} \right] (\omega).
+    \int^{T}_{S} \phi(t, \omega)\, dB_t(\omega) = \sum_{j} e_j(\omega) \left[ B_{t_{j + 1}} - B_{t_{j}} \right] (\omega).
 \end{equation*}
 
 \begin{lemma}[Ito isometry]
@@ -70,7 +68,7 @@ For elementary functions we define the Ito integral as
 Using the Ito isometry and the definition of the Ito integral for elementary functions,
 the Ito integral can be extended to the class of functions $\mathcal{V}$,
 using that the functions in $\mathcal{V}$ can be expressed as the limit of sequences of simpler functions.
-It is worth mention the the Ito isometry still holds for any function in $\mathcal{V}$.
+It is worth mentioning that the Itô isometry still holds for any function in $\mathcal{V}$.
 
 The result of the integral is a stochastic process,
 which is a continuous martingale.
@@ -81,7 +79,7 @@ plus the resulting process has the nice property of being a martingale.
 
 The class $\mathcal{V}$ is rather limited and does not even contain all continuous functions, see \cite{steele_stochastic}.
 Having to restrict to this class would be rather inconvenient when modeling using SDEs,
-luckily the Ito integral can be extended to broader class by relaxing the last condition of the definition \ref{def:ito_integral_reqs}
+luckily the Itô integral can be extended to a broader class by relaxing the last condition of Definition~\ref{def:ito_integral_reqs}
 \begin{equation*}
     P \left( \int^{T}_{S} f(t, \omega)^2 dt < \infty \right) = 1,
 \end{equation*}
@@ -113,13 +111,13 @@ The Ito's formula is a stochastic version of the chain rule for derivatives.
 
 The equation \eqref{eq:ito_process} can be also written in differential form as
 \begin{equation*}
-    dX_t = \mu ds + \sigma dB_s.
+    dX_t = \mu\, dt + \sigma\, dB_t.
 \end{equation*}
 
-\begin{theorem}[1-dimensional Ito's formula]
-    Let $X_t$ be an Ito process given by
+\begin{theorem}[1-dimensional Itô's formula]\label{thm:ito_formula}
+    Let $X_t$ be an Itô process given by
     \begin{equation*}
-        dX_t = \mu ds + \sigma dB_s.
+        dX_t = \mu\, dt + \sigma\, dB_t.
     \end{equation*}
     Let $g(t, x) \in C^2([0, \infty) \times \R)$, then
     \begin{equation*}
@@ -163,15 +161,15 @@ The formula can be extended to multiple dimensions.
     \end{equation*}
     or in matrix notation
     \begin{equation*}
-        dX_t = \mu ds + \sigma dB_s.
+        dX_t = \mu\, dt + \sigma\, dB_t,
     \end{equation*}
-    where $\mu = (\mu_1, \dots, \mu_n)$ and $\sigma = (\sigma_{ij})$ are $n$-dimensional vectors and $m \times n$ matrices respectively.
+    where $\mu = (\mu_1, \dots, \mu_n)$ and $\sigma = (\sigma_{ij})$ are an $n$-dimensional vector and an $n \times m$ matrix respectively.
 \end{definition}
 
-\begin{theorem}[General Ito's formula]
-    Let $X_t$ be a $n$-dimensional Ito process given by
+\begin{theorem}[General Itô's formula]\label{thm:ndim_ito_formula}
+    Let $X_t$ be an $n$-dimensional Itô process given by
     \begin{equation*}
-        dX_t = \mu ds + \sigma dB_s.
+        dX_t = \mu\, dt + \sigma\, dB_t.
     \end{equation*}
     Let $g(t, x) = (g_1(t, x), \dots, g_p(t, x)) \in C^2([0, \infty) \times \R^n)$, then
     \begin{equation*}
@@ -187,17 +185,85 @@ The formula can be extended to multiple dimensions.
     where $dX_i(t) dX_j(t)$ is computed according to the rules
     \begin{equation*}
         (dB_i(t))^2 = dt, \qquad
-        dB_i(t) dB_j(t) = 0.
+        dB_i(t)\, dB_j(t) = 0 \quad (i \neq j).
     \end{equation*}
 \end{theorem}
 
 \subsection{Stochastic differential equations}
 
-% Existence and uniqueness Theorem?
+A \textbf{stochastic differential equation} (SDE) is an equation of the form
+\begin{equation}\label{eq:sde_general}
+    dX_t = b(t, X_t)\, dt + \sigma(t, X_t)\, dB_t, \qquad X_0 = x_0,
+\end{equation}
+where $b: [0,T] \times \R^n \to \R^n$ is the \textit{drift} and
+$\sigma: [0,T] \times \R^n \to \R^{n \times m}$ is the \textit{diffusion} coefficient.
+A solution is an Itô process $X_t$ satisfying \eqref{eq:sde_general} almost surely.
 
-% Strong and weak solutions?
+The following theorem, whose proof may be found in \cite[Thm.~5.2.1]{oksendal_sde},
+gives sufficient conditions for a solution to exist and be unique.
 
-% Examples: Ornstein-Uhlenbeck, Geometric Brownian motion
+\begin{theorem}[Existence and uniqueness]\label{thm:sde_existence}
+    Let $T > 0$.
+    Suppose $b$ and $\sigma$ satisfy, for all $t \in [0,T]$ and $x, y \in \R^n$,
+    \begin{enumerate}
+        \item \textup{(Lipschitz)} $|b(t,x) - b(t,y)| + |\sigma(t,x) - \sigma(t,y)| \leq C\,|x - y|$,
+        \item \textup{(Linear growth)} $|b(t,x)|^2 + |\sigma(t,x)|^2 \leq C^2(1 + |x|^2)$,
+    \end{enumerate}
+    for some constant $C > 0$, and let $x_0 \in \R^n$.
+    Then the SDE \eqref{eq:sde_general} has a unique (up to indistinguishability)
+    continuous adapted solution $\{X_t\}_{0 \leq t \leq T}$.
+\end{theorem}
+
+We close with two fundamental examples, both following \cite[Ch.~5]{oksendal_sde}.
+
+\subsubsection{Example: Geometric Brownian motion}
+
+Let $\mu, \sigma \in \R$ with $\sigma \neq 0$ and $S_0 > 0$.
+Consider the SDE
+\begin{equation}\label{eq:gbm_sde}
+    dS_t = \mu S_t\, dt + \sigma S_t\, dB_t.
+\end{equation}
+This is called \textbf{geometric Brownian motion} and is the model used in Section~\ref{subsec:black_scholes_model}
+for the dynamics of a stock price.
+
+Applying Theorem~\ref{thm:ito_formula} to $g(t, x) = \ln x$,
+with $g_t = 0$, $g_x = x^{-1}$, $g_{xx} = -x^{-2}$,
+\begin{equation*}
+    d(\ln S_t)
+        = \frac{1}{S_t}\, dS_t - \frac{1}{2 S_t^2}(dS_t)^2
+        = \mu\, dt + \sigma\, dB_t - \frac{\sigma^2}{2}\, dt
+        = \left(\mu - \frac{\sigma^2}{2}\right) dt + \sigma\, dB_t.
+\end{equation*}
+Integrating both sides from $0$ to $t$ gives $\ln(S_t / S_0) = (\mu - \sigma^2/2)\,t + \sigma B_t$,
+so the unique solution is
+\begin{equation}\label{eq:gbm_solution}
+    S_t = S_0 \exp\!\left[\left(\mu - \frac{\sigma^2}{2}\right) t + \sigma B_t\right].
+\end{equation}
+
+\subsubsection{Example: Ornstein-Uhlenbeck process}
+
+Let $\theta, \sigma > 0$ and $\mu \in \R$.
+Consider the SDE
+\begin{equation}\label{eq:ou_sde}
+    dX_t = \theta(\mu - X_t)\, dt + \sigma\, dB_t, \qquad X_0 = x_0.
+\end{equation}
+This is the \textbf{Ornstein-Uhlenbeck (OU) process},
+a mean-reverting model: the drift $\theta(\mu - X_t)$ pulls the process toward the long-run mean $\mu$ at rate $\theta$.
+It appears, for instance, in the Vasicek interest rate model.
+
+To solve, let $Y_t = (X_t - \mu)e^{\theta t}$.
+Applying Theorem~\ref{thm:ito_formula} with $g(t,x) = (x - \mu)e^{\theta t}$,
+\begin{equation*}
+    dY_t
+        = \theta(X_t - \mu)e^{\theta t}\, dt + e^{\theta t}\, dX_t
+        = e^{\theta t}\bigl[\theta(\mu - X_t) + \theta(X_t - \mu)\bigr] dt + \sigma e^{\theta t}\, dB_t
+        = \sigma e^{\theta t}\, dB_t.
+\end{equation*}
+Integrating and reverting the substitution,
+\begin{equation}\label{eq:ou_solution}
+    X_t = \mu + (x_0 - \mu)\,e^{-\theta t} + \sigma \int_0^t e^{-\theta(t - s)}\, dB_s.
+\end{equation}
+The OU process is Gaussian with $\E[X_t] = \mu + (x_0 - \mu)e^{-\theta t} \to \mu$ as $t \to \infty$.
 
 
 
