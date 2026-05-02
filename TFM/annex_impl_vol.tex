@@ -1,0 +1,250 @@
+% ----------------------------------
+%   Appendix A: Implied Volatility Surface — Implementation Details
+% ----------------------------------
+
+\section{Implied Volatility Surface - Implementation Details}
+\label{app:impl_vol}
+
+This appendix describes the pipeline used to construct the SPY implied volatility
+surface shown in Section~\ref{subsec:black_scholes_model},
+including the practical difficulties encountered and the assumptions made at each step.
+All code lives in \href{https://github.com/M315/TFM/tree/main/scripts/impl_vol/}{Implied Volatility Code} and is reproducible from the cached
+market snapshot dated 2026-04-30.
+
+% ----------------------------------
+\subsection{Data}
+
+SPY option chains are fetched via the \texttt{yfinance} library.
+We restrict to maturities $4\,\text{wk} \leq T \leq 1\,\text{yr}$ and require a minimum
+trading volume of 10 contracts per quote.
+When both bid and ask are positive the mid-price is used;
+otherwise the last traded price is taken as a fallback (relevant for pre-market snapshots
+where the spread is stale but the last price is more informative).
+Data for calls and puts are cached separately as \textit{parquet} files so that all
+subsequent computations are fully reproducible without network access.
+
+% ----------------------------------
+\subsection{Risk-free rate}
+
+The risk-free rate is taken from the US Treasury par yield curve published daily
+by the US Department of the Treasury.
+Par yields are available at standard maturities (1M, 2M, 3M, 4M, 6M, 1Y, 2Y, 3Y,
+5Y, 7Y, 10Y, 20Y, 30Y) and are converted to continuously-compounded rates via
+\begin{equation*}
+    r_{\mathrm{cc}} = \ln\!\left(1 + \frac{y}{100}\right),
+\end{equation*}
+where $y$ is the par yield in percent.
+Rates are linearly interpolated (in $T$) between the published nodes and held flat
+outside the range.
+Figure~\ref{fig:yield_curve} shows the resulting curve on the reference date.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.72\textwidth]{yield_curve}
+    \caption{US Treasury par yield curve on 2026-04-30 (log-maturity axis).
+             Red dots are published nodes; the line is the linear interpolant
+             used to assign a per-maturity discount rate.}
+    \label{fig:yield_curve}
+\end{figure}
+
+Note that the risk-free rate could be refined further as the US Treasuries are not strictly risk-free,
+as they carry a small credit risk premium.
+A better discounting rate for SPY options would be the overnight index swap (OIS) rate rather than the Treasury curve,
+but for our purposes the difference is not enough to justify the additional complexity of fetching and processing OIS data.
+
+% ----------------------------------
+\subsection{Dividend yield calibration}
+\label{subsec:div_yield_cal}
+
+SPY pays dividends quarterly, so any pricing formula must account for the dividend yield $q$.
+Getting $q$ wrong breaks the internal consistency of the surface:
+puts and calls at the same strike and maturity imply different volatilities,
+producing a visible discontinuity at the money in any composite surface.
+We went through three successive approximations before reaching a satisfactory result.
+
+\paragraph{Stage 1 - $q = 0$.}
+The simplest assumption is to ignore dividends entirely.
+This is equivalent to treating SPY as a non-dividend-paying asset,
+which is a standard simplification when the dividend yield is small relative to
+the interest rate and the maturity is short.
+For maturities beyond a few months, however, cumulative dividends are non-negligible
+(SPY's trailing yield is approximately 1.1\%) and the forward price implied by
+put-call parity,
+\begin{equation*}
+    F = S e^{(r - q)T},
+\end{equation*}
+is overestimated if $q$ is set to zero.
+As a result, the Black-Scholes-Merton formula assigns different implied volatilities
+to calls and puts at the same strike,
+since each type is sensitive to the forward in a different direction.
+
+\paragraph{Stage 2 - Fixed annual yield.}
+The natural correction is to use the trailing twelve-month dividend yield reported
+by the data provider ($q \approx 1.14\%$ for SPY on the reference date).
+This constant is applied uniformly to all maturities.
+The surface improves near the money, but the fix is imprecise:
+SPY dividends are paid on a quarterly schedule, so the effective yield between
+two option expirations depends on how many ex-dividend dates fall within that window.
+A short-dated option expiring before the next ex-dividend date carries an effective
+$q \approx 0$, while a longer-dated option spanning several dividend payments accumulates
+a yield closer to the annual figure.
+Applying a single annual constant systematically over-corrects for short maturities
+and under-corrects in an uncontrolled way across the term structure.
+
+\paragraph{Stage 3 - Put-Call parity calibration.}
+The cleanest approach is to infer $q$ at each expiration directly from market prices
+using put-call parity, keeping the Treasury rate $r$ fixed.
+For each matched call-put pair at strike $K_i$ and expiration $T$,
+put-call parity gives
+\begin{equation*}
+    C_i - P_i = S e^{-qT} - K_i e^{-rT}.
+\end{equation*}
+Defining the cost-of-carry forward $F = S e^{(r-q)T}$ and multiplying both sides
+by $e^{rT}$ yields an implied forward per pair,
+\begin{equation*}
+    F_i = (C_i - P_i)\,e^{rT} + K_i,
+\end{equation*}
+where $q$ is encoded inside $F_i$ rather than appearing explicitly.
+Taking the median over the relevant pairs at a given expiration yields a robust
+forward estimate $\tilde{F}$, and inverting $\tilde{F} = S e^{(r-q)T}$ gives
+\begin{equation*}
+    q = r - \frac{\ln(\tilde{F}/S)}{T}.
+\end{equation*}
+
+A key implementation choice is \emph{which pairs to include}.
+Put-call parity holds model-free for any European options,
+but the quality of the forward estimate depends on how cleanly each leg is priced.
+For a strike $K < S$ the call is in-the-money and the put is out-of-the-money;
+for $K > S$ the roles are reversed.
+Deep in-the-money options are significantly less liquid:
+their price is dominated by intrinsic value, the bid-ask spread is wide relative
+to the time value, and last-trade prices can be hours stale.
+Feeding these pairs into the forward estimate biases $\tilde{F}$ toward noisy values.
+
+We therefore restrict the calibration to near-ATM pairs satisfying
+$|K/S - 1| \leq 0.05$ (i.e.\ strikes within $\pm 5\%$ of the current spot).
+In this band, both the call and the put are close to at-the-money;
+both legs have tight spreads and meaningful open interest,
+and the time value is large relative to the bid-ask noise.
+The median over these pairs (rather than the mean or a least-squares fit)
+guards against the occasional stale quote even in the near-ATM region.
+If fewer than two near-ATM pairs are available the constraint is relaxed to all matched pairs.
+
+Since $r$ is fixed from the Treasury curve, there is only one free parameter per
+expiration, which avoids the instability of simultaneously fitting both $r$ and $q$.
+Calibrated values are bounded to $q \in [-0.02, 0.10]$; if the result is outside
+this range (a sign of too few matched pairs or erroneous data), the provider value
+is used as a fallback.
+
+The resulting term structure shows $q \approx 0$ for near-term expirations
+(the next quarterly dividend has not yet been declared within the window)
+and a gradual convergence to the trailing annual yield for longer maturities,
+which is economically consistent with the quarterly payment schedule.
+
+Figure~\ref{fig:atm_gap} illustrates the three stages for the December 2026 expiration
+($T \approx 0.63$ yr), where the effect of the dividend yield is large enough to be
+clearly visible.
+Each panel overlays the put-implied and call-implied volatility curves across the
+full strike range.
+With $q = 0$ (Stage 1) the two curves diverge significantly and the level is
+shifted upward for OTM puts and downward for OTM calls.
+With a fixed annual $q$ (Stage 2) the ATM region improves but the term-structure
+mismatch remains.
+With the PCP-calibrated $q$ (Stage 3) the two curves sit on top of each other
+near the money, confirming that the composite surface can be joined smoothly.
+The residual divergence at deep in-the-money strikes visible in all three panels
+is due to liquidity issues (wide bid-ask spreads, stale prices) rather than the
+dividend yield assumption, and is removed by restricting the composite to
+out-of-the-money quotes only.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{annex_atm_gap}
+    \caption{Call-implied (solid blue) and put-implied (dashed red) volatility across
+             all available strikes at the December 2026 expiration ($T \approx 0.63$ yr),
+             under three dividend yield assumptions.
+             Stage 1 ($q=0$): curves diverge sharply — the forward is overestimated,
+             shifting call and put IVs in opposite directions.
+             Stage 2 (fixed annual $q$): improved near ATM, but the flat term structure
+             leaves systematic errors for maturities where the true $q$ differs from
+             the annual average.
+             Stage 3 (PCP-calibrated $q$ from near-ATM pairs): the two curves coincide
+             in the OTM region, where both legs are liquid.
+             The residual divergence far from ATM (deep ITM options) is a liquidity
+             artefact — those strikes are excluded from the composite surface.}
+    \label{fig:atm_gap}
+\end{figure}
+
+% ----------------------------------
+\subsection{OTM composite construction}
+
+Once $r$ and $q$ are consistent with market prices, the composite surface is formed
+by taking out-of-the-money options only:
+OTM puts ($K < S$) for the left wing and OTM calls ($K \geq S$) for the right wing.
+
+The rationale is that in-the-money options are significantly less liquid than
+their out-of-the-money counterparts: ITM bids tend to be stale, spreads are wide,
+and the option price is dominated by intrinsic value, so a small absolute pricing
+error translates into a large relative error in the time value — and therefore a
+large error in the inverted implied volatility.
+This is visible in Figure~\ref{fig:atm_gap}: the divergence between call and put
+IV curves away from the money persists even in Stage~3, not because $q$ is wrong
+but because deep-ITM prices are unreliable.
+
+Figures~\ref{fig:iv_calls} and \ref{fig:iv_puts} show the full call and put surfaces
+(all strikes, no ITM filter) to illustrate the noise.
+The clean composite (Figure~\ref{fig:iv_surface}) is obtained after restricting to
+$0.75 \leq K/S \leq 1.25$ and keeping only the OTM leg for each option type.
+
+\begin{figure}[h]
+    \centering
+    \begin{minipage}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{iv_calls}
+        \caption{IV surface from all call quotes (including deep ITM, $K \ll S$).
+                 Deep ITM calls carry noisy implied volatilities due to wide spreads
+                 and stale prices.}
+        \label{fig:iv_calls}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{iv_puts}
+        \caption{IV surface from all put quotes (including deep ITM, $K \gg S$).
+                 Same liquidity issue for strikes far above the spot.}
+        \label{fig:iv_puts}
+    \end{minipage}
+\end{figure}
+
+% ----------------------------------
+\subsection{Expiration selection}
+
+SPY has a dense cluster of weekly expirations in the short end (roughly 1-8 weeks).
+Including all available expirations would over-weight this region and produce a surface
+that appears smooth in absolute maturity but poorly samples the longer end.
+To obtain a balanced representation, the full maturity range is divided into
+$N = 10$ log-spaced bins; within each bin the expiration with the highest combined
+open interest (calls plus puts) is kept.
+This ensures that liquidity guides the selection and that the resulting sample
+is approximately uniform in $\log T$, which is the natural scale on which the
+term structure of volatility varies.
+
+% ----------------------------------
+\subsection{Summary of assumptions}
+
+For reference, the key modelling assumptions are:
+\begin{itemize}
+    \item \textbf{European exercise}: SPY options are technically American-style.
+          The early-exercise premium is small for an index ETF with a low continuous yield
+          and is neglected here; the BSM formula is used as an approximation.
+    \item \textbf{Continuous dividends}: actual SPY dividends are discrete quarterly
+          payments. The PCP calibration implicitly converts them into a continuous yield
+          that is consistent with the current option prices, which is the standard
+          market convention.
+    \item \textbf{Moneyness filter} $0.75 \leq K/S \leq 1.25$: strikes outside
+          this range are too illiquid to contribute reliable IV observations.
+    \item \textbf{Volume filter}: quotes with fewer than 10 contracts of daily volume
+          are excluded.
+    \item \textbf{Single snapshot}: the surface is computed from a single end-of-day
+          snapshot; intraday bid-ask movements are not captured.
+\end{itemize}

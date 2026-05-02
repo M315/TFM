@@ -87,6 +87,9 @@ def build_composite(calls_df: pd.DataFrame, puts_df: pd.DataFrame) -> pd.DataFra
     return pd.concat([otm_puts, otm_calls], ignore_index=True)
 
 
+PCP_MONEYNESS_BAND = 0.05   # use only pairs within ±5 % of spot for q calibration
+
+
 def calibrate_dividend_yield(
     calls_raw: pd.DataFrame, puts_raw: pd.DataFrame
 ) -> dict:
@@ -97,30 +100,43 @@ def calibrate_dividend_yield(
     Put-call parity:  C - P = S·e^{-qT} - K·e^{-rT}
     Rearranging per matched pair:  F_i = (C_i - P_i)·e^{rT} + K_i
 
-    where F = S·e^{(r-q)T} is the cost-of-carry forward.  Taking the median
-    over all matched pairs at each expiration gives a robust forward estimate,
-    from which  q = r - ln(F/S) / T.
+    where F = S·e^{(r-q)T} is the cost-of-carry forward.  The median over
+    near-ATM pairs (|K/S - 1| ≤ PCP_MONEYNESS_BAND) is used to estimate F.
 
-    Returns {expiration: (r, q_calibrated)}.
-    Falls back to the initial q for expirations with too few pairs or
-    implausible results.
+    Restricting to near-ATM strikes ensures both legs of each pair are liquid:
+    deep ITM calls and deep ITM puts have wide bid-ask spreads and their prices
+    are dominated by intrinsic value, making them unreliable for PCP calibration.
+    OTM puts (K slightly below S) and OTM calls (K slightly above S) are the
+    most actively traded and give the tightest forward estimates.
+
+    If fewer than 2 near-ATM pairs are available, falls back to all matched
+    pairs.  Returns {expiration: (r, q_calibrated)}.
     """
     pairs = pd.merge(
         calls_raw[["K", "expiration", "T", "S", "r", "q", "mid"]].rename(columns={"mid": "C"}),
         puts_raw[["K", "expiration", "mid"]].rename(columns={"mid": "P"}),
         on=["K", "expiration"],
     )
+    pairs["moneyness"] = pairs["K"] / pairs["S"]
 
     results = {}
     for exp, grp in pairs.groupby("expiration"):
-        if len(grp) < 2:
-            continue
         T  = grp["T"].iloc[0]
         S  = grp["S"].iloc[0]
         r  = grp["r"].iloc[0]
         q0 = grp["q"].iloc[0]
 
-        F_implied = (grp["C"] - grp["P"]) * np.exp(r * T) + grp["K"]
+        # prefer near-ATM pairs; fall back to all pairs if too few
+        near_atm = grp[
+            (grp["moneyness"] >= 1.0 - PCP_MONEYNESS_BAND)
+            & (grp["moneyness"] <= 1.0 + PCP_MONEYNESS_BAND)
+        ]
+        active = near_atm if len(near_atm) >= 2 else grp
+
+        if len(active) < 2:
+            continue
+
+        F_implied = (active["C"] - active["P"]) * np.exp(r * T) + active["K"]
         F = float(F_implied.median())
 
         if F <= 0:

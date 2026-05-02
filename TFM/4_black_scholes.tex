@@ -560,3 +560,30 @@ is inconsistent with observed market prices.
 This motivates more flexible models such as the \textit{local volatility model},
 which replaces $\sigma$ by a deterministic function $\sigma(t, S)$ calibrated to reproduce the full surface exactly,
 as described in the following section.
+
+Figure~\ref{fig:iv_surface} shows the implied volatility surface computed from SPY option quotes
+on 2026-04-30, using the Black-Scholes-Merton formula with a continuously compounded dividend yield
+calibrated per maturity from put-call parity (see Appendix~\ref{app:impl_vol} for implementation details).
+The characteristic features are clearly visible: the volatility skew in the moneyness direction
+and the term structure in the maturity direction.
+Figure~\ref{fig:iv_smile} shows the smile slice at the median maturity ($T \approx 0.21$ yr),
+where OTM puts (red) and OTM calls (blue) meet smoothly at the money.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\textwidth]{iv_composite}
+    \caption{SPY implied volatility surface (OTM composite) on 2026-04-30.
+             Axes: time to maturity $T$ (years), moneyness $K/S$ (inverted scale),
+             implied volatility $\hat{\sigma}$.
+             Red dots are individual market quotes; the surface is linearly interpolated.}
+    \label{fig:iv_surface}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.72\textwidth]{iv_smile}
+    \caption{Volatility smile at the median maturity ($T \approx 0.21$ yr, expiration 2026-07-17).
+             OTM puts (red) and OTM calls (blue) are joined from the calibrated composite surface.
+             The smooth join at $K = S$ reflects the consistent dividend yield calibration.}
+    \label{fig:iv_smile}
+\end{figure}

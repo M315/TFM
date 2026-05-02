@@ -12,6 +12,7 @@
 
 \documentclass[11pt, a4paper]{article}		% document format
 \usepackage{graphicx}						% package to insert graphics
+\graphicspath{{figures/}}
 \usepackage[english]{babel}
 \usepackage[utf8]{inputenc}			% this enables all unicode characters
 \usepackage{
@@ -24,6 +25,7 @@
 \usepackage{fancyhdr}						% package for headers, foot and margin notes
 \usepackage{enumitem}						% allows to change the enumeration format in line
 \usepackage{tikz}               % package for drawing graphs
+\usepackage{hyperref}           % package for hyperlinks
 \usepackage{algpseudocode}      % package for algorithms
 \usepackage[
   top=2cm,
@@ -110,6 +112,8 @@
 	\include{4_black_scholes}
   \include{5_arbitrage}
   \include{6_local_vol}
+  \appendix
+  \include{annex_impl_vol}
   \bibliographystyle{plain}
   \bibliography{references}
 \end{document}
