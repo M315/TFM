@@ -6,6 +6,7 @@
 *.bcf
 *.blg
 *.synctex*
+*.out
 
 *.pyc
 /references/*

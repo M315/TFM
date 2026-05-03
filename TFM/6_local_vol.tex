@@ -25,15 +25,15 @@ It extends the Black-Scholes framework by allowing the instantaneous volatility 
 \end{equation*}
 So the dynamics of the underlying asset under the local volatility model are given by the following stochastic differential equation,
 \begin{equation*}
-    \frac{dS_t}{S_t} = \mu(t, S_t) dt + \sigma(t, S_t) dW_t,
+    \frac{dS_t}{S_t} = (r - q)\, dt + \sigma(t, S_t)\, dW_t,
 \end{equation*}
 and the pricing PDE is identical to the Black-Scholes PDE,
 with the deterministic volatility function replacing the constant volatility
 \begin{equation*}
     \frac{\partial f}{\partial t} =
         r f(t, S_t)
-        - r \frac{\partial f}{\partial S} S_t 
-        - \frac{1}{2} \frac{\partial^2 f}{\partial S^2} \sigma^2(t, S_t) S_t^2,
+        - (r - q) S_t \frac{\partial f}{\partial S}
+        - \frac{1}{2} \sigma^2(t, S_t) S_t^2 \frac{\partial^2 f}{\partial S^2},
 \end{equation*}
 
 \subsubsection{Market model}
@@ -50,7 +50,196 @@ since it is calibrated to match the vanilla option prices observed in the market
 
 \subsection{Dupire Equation}
 
-We will deduce the Dupire equation from arbitrage free arguments.
+The Dupire equation, introduced in \cite{dupire_pricing_smile},
+expresses the local volatility function $\sigma(t, S)$ directly in terms of derivatives
+of call option prices with respect to strike and maturity.
+We present the derivation following \cite{bergomi_stochastic_vol}.
+
+\subsubsection{Derivation}
+
+Consider the following general diffusive dynamics for $S_t$:
+\begin{equation}\label{eq:log-normal_diffusion}
+    dS_t = (r - q)\,S_t\,dt + \sigma_t\,S_t\,dW_t,
+\end{equation}
+where $\sigma_t$ is an arbitrary adapted process.
+The price of a European call option with strike $K$ and maturity $T$ under the risk-neutral measure is:
+\begin{equation*}
+    C(K, T) = e^{-rT}\,\E\!\left[(S_T - K)^+\right].
+\end{equation*}
+
+Before applying It\^{o}'s formula we recall the two generalized functions
+that appear as distributional derivatives of $(x)^+ = \max(x, 0)$.
+
+\begin{definition}[Heaviside function]
+The \textbf{Heaviside function} $\theta : \R \to \{0,1\}$ is defined by
+\begin{equation*}
+    \theta(x) =
+    \begin{cases}
+        1 & x > 0, \\
+        0 & x < 0.
+    \end{cases}
+\end{equation*}
+\end{definition}
+
+\begin{definition}[Dirac delta]
+The \textbf{Dirac delta} $\delta$ is the distributional derivative of $\theta$,
+characterized by the property that for any smooth test function $\varphi$:
+\begin{equation*}
+    \int_{-\infty}^{+\infty} \varphi(x)\,\delta(x)\,dx = \varphi(0).
+\end{equation*}
+\end{definition}
+
+These two distributions arise as the successive generalized derivatives of $(x)^+$:
+\begin{equation}\label{eq:heaviside_delta_max}
+    \frac{d}{dx}(x)^+ = \theta(x),
+    \qquad
+    \frac{d^2}{dx^2}(x)^+ = \delta(x).
+\end{equation}
+The first identity follows from $(x)^+ = x\,\theta(x)$ and $x\,\delta(x) = 0$;
+the second is the distributional derivative of $\theta$.
+
+To relate option prices to the dynamics of $S_t$, we apply It\^{o}'s formula
+to $(S_T - K)^+$ over the interval $[T, T + dT]$, using \eqref{eq:heaviside_delta_max}
+with $x = S_T - K$:
+\begin{align*}
+    d(S_T - K)^+
+    &= \theta(S_T - K)\bigl((r-q)\,S_T\,dT + \sigma_T\,S_T\,dW_T\bigr) \\
+    &\quad + \frac{1}{2}\,\delta(S_T - K)\,\sigma_T^2\,S_T^2\,dT.
+\end{align*}
+We work with undiscounted prices $\mathcal{C}(K,T) = e^{rT} C(K,T)$.
+Differentiating the identity $\mathcal{C}(K,T) = \E[(S_T - K)^+]$ with respect to $K$ gives:
+\begin{equation}\label{eq:dupire_density}
+    \E\!\left[\theta(S_T - K)\right] = -\frac{\partial \mathcal{C}}{\partial K},
+    \qquad
+    \E\!\left[\delta(S_T - K)\right] = \frac{\partial^2 \mathcal{C}}{\partial K^2}.
+\end{equation}
+The second identity is the Breeden--Litzenberger result \cite{breeden_litzenberger}: the second strike derivative
+of undiscounted call prices equals the risk-neutral density of $S_T$.
+To see why, let $p(\cdot, T)$ denote the risk-neutral density of $S_T$, so that
+\begin{equation*}
+    \mathcal{C}(K, T)
+        = \E[(S_T - K)^+]
+        = \int_0^{\infty} (s - K)^+\, p(s, T)\,ds
+        = \int_K^{\infty} (s - K)\, p(s, T)\,ds.
+\end{equation*}
+Differentiating with respect to $K$ (using Leibniz's rule, noting the lower limit contributes zero
+because $(K-K)^+ = 0$):
+\begin{equation*}
+    \frac{\partial \mathcal{C}}{\partial K}
+        = -\int_K^{\infty} p(s, T)\,ds
+        = -(1 - F(K, T)),
+\end{equation*}
+where $F(K, T) = P(S_T \leq K)$ is the risk-neutral CDF.
+A second differentiation gives:
+\begin{equation}\label{eq:breeden_litzenberger}
+    \frac{\partial^2 \mathcal{C}}{\partial K^2} = p(K, T).
+\end{equation}
+Since $\E[\delta(S_T - K)] = \int_0^\infty \delta(s - K)\,p(s,T)\,ds = p(K,T)$,
+this is exactly the second identity in~\eqref{eq:dupire_density}.
+In particular, the positivity of $p$ guarantees $\partial^2 \mathcal{C}/\partial K^2 \geq 0$,
+which we will use when discussing no-arbitrage conditions.
+
+From the identity $\mathcal{C} = \E[S_T\,\theta(S_T - K)] - K\,\E[\theta(S_T - K)]$ we also obtain:
+\begin{equation*}
+    \E\!\left[S_T\,\theta(S_T - K)\right] = \mathcal{C} - K\frac{\partial \mathcal{C}}{\partial K}.
+\end{equation*}
+
+Taking the expectation of the It\^{o} expansion (noting $\E[dW_T] = 0$) and substituting these identities:
+\begin{equation*}
+\begin{aligned}
+    \frac{\partial \mathcal{C}}{\partial T}\,dT
+        & = (r-q)\,\E[S_T\,\theta(S_T-K)]\,dT
+        + \frac{1}{2}\,\E\!\left[\sigma_T^2\,S_T^2\,\delta(S_T - K)\right]dT \\
+        & = (r-q)\!\left(\mathcal{C} - K\frac{\partial \mathcal{C}}{\partial K}\right)dT
+        + \frac{1}{2}\,\E\!\left[\sigma_T^2\,S_T^2\,\delta(S_T - K)\right]dT.
+\end{aligned}
+\end{equation*}
+For the remaining term, we use the sifting property of the Dirac delta:
+since $\delta(S_T - K)$ is supported at $S_T = K$, the factor $S_T^2$ can be replaced by $K^2$ inside any expectation,
+\begin{equation*}
+    \E\!\left[\sigma_T^2\,S_T^2\,\delta(S_T - K)\right] = K^2\,\E\!\left[\sigma_T^2\,\delta(S_T - K)\right],
+\end{equation*}
+giving:
+\begin{equation*}
+    \frac{\partial \mathcal{C}}{\partial T}\,dT
+    = (r-q)\!\left(\mathcal{C} - K\frac{\partial \mathcal{C}}{\partial K}\right)dT
+    + \frac{K^2}{2}\,\E\!\left[\sigma_T^2\,\delta(S_T - K)\right]dT.
+\end{equation*}
+Solving for $\E[\sigma_T^2\,\delta(S_T - K)]$, dividing by
+$\E[\delta(S_T - K)] = \partial^2\mathcal{C}/\partial K^2$,
+and reverting to discounted prices $C = e^{-rT}\mathcal{C}$, we obtain:
+\begin{equation}\label{eq:dupire_general}
+    \E\!\left[\sigma_T^2 \,\middle|\, S_T = K\right]
+    = 2\,\frac{\dfrac{\partial C}{\partial T} + qC + (r-q)\,K\,\dfrac{\partial C}{\partial K}}
+           {K^2\,\dfrac{\partial^2 C}{\partial K^2}}.
+\end{equation}
+This identity holds for any model of the lognormal-type form \ref{eq:log-normal_diffusion},
+with $\sigma_t$ an arbitrary adapted process \cite{bergomi_stochastic_vol}.
+The multiplicative structure $\sigma_t S_t$ is essential: it is what produces the factor $S_T^2$ in the It\^{o} expansion,
+which the sifting property then converts to $K^2$.
+A consequence is that the smile alone does not determine $\sigma_t$:
+two processes $\sigma_t$ and $\sigma_t'$ generate the same vanilla smile if and only if
+$\E[\sigma_T^2 \mid S_T = K] = \E[\sigma_T^{\prime 2} \mid S_T = K]$ for all $K$ and $T$.
+
+In the local volatility model, where $\sigma_t \equiv \sigma(t, S_t)$,
+the conditional expectation reduces to $\sigma(t,S)^2$,
+and evaluating at $K = S$, $T = t$ gives the \textbf{Dupire formula}:
+\begin{equation}\label{eq:dupire_formula}
+    \sigma(t, S)^2 = 2\,\frac{
+        \dfrac{\partial C}{\partial T} + qC + (r-q)\,K\,\dfrac{\partial C}{\partial K}
+    }{
+        K^2\,\dfrac{\partial^2 C}{\partial K^2}
+    }\Bigg|_{\substack{K = S,\\ T = t}}.
+\end{equation}
+Given the full surface of observed call prices $C(K,T)$,
+equation~\eqref{eq:dupire_formula} uniquely determines the local volatility function.
+
+\subsubsection{Forward equation}
+
+Rearranging \eqref{eq:dupire_general} for a known local volatility function $\sigma(t, S)$
+yields the \textbf{Dupire forward equation}:
+\begin{equation}\label{eq:dupire_forward}
+    \frac{\partial C}{\partial T} + (r-q)\,K\,\frac{\partial C}{\partial K}
+    - \frac{\sigma^2(T,K)}{2}\,K^2\,\frac{\partial^2 C}{\partial K^2} = -qC.
+\end{equation}
+Unlike the Black-Scholes backward PDE, which is solved backwards in $t$
+from a terminal payoff for a single strike and maturity,
+the forward equation propagates forward in $T$ with initial condition
+$C(K, T = 0) = (S_0 - K)^+$,
+producing prices for a fixed initial spot $S_0$ but all strikes $K$ and maturities $T$ simultaneously.
+
+\subsubsection{No-arbitrage conditions}
+
+For the Dupire formula~\eqref{eq:dupire_formula} to yield a positive local variance,
+both the numerator and denominator of~\eqref{eq:dupire_general} must be strictly positive,
+which is equivalent to requiring the option surface to be free of arbitrage.
+
+\paragraph{Strike arbitrage.}
+From~\eqref{eq:dupire_density}, the denominator satisfies:
+\begin{equation*}
+    \frac{\partial^2 C(K,T)}{\partial K^2} = e^{-rT}\,\E\!\left[\delta(S_T - K)\right] \geq 0,
+\end{equation*}
+since it is proportional to the risk-neutral density of $S_T$.
+A violation can be exploited via a \textit{butterfly spread}:
+buying $\varepsilon^{-2}$ calls at strike $K-\varepsilon$,
+buying $\varepsilon^{-2}$ calls at strike $K+\varepsilon$,
+and selling $2\varepsilon^{-2}$ calls at strike $K$.
+This portfolio has a non-negative payoff at maturity for any realisation of $S_T$,
+so its inception value must be non-negative, implying $\partial^2 C/\partial K^2 \geq 0$.
+
+\paragraph{Maturity arbitrage.}
+The numerator of~\eqref{eq:dupire_general} can be rewritten as:
+\begin{equation*}
+    e^{-qT}\frac{d}{dT}\!\left[e^{qT}\,C\!\left(K e^{(r-q)T}, T\right)\right],
+\end{equation*}
+which is non-negative if and only if $e^{qT}$ times the price of a call struck at
+a fixed proportion of the forward $F_T = S_0 e^{(r-q)T}$ is non-decreasing in maturity.
+A violation constitutes a \textit{maturity arbitrage}:
+one can buy a longer-dated option and sell a shorter-dated one at a net positive premium,
+with a delta position that generates non-negative P\&L at both maturities.
+
+In an arbitrage-free market both conditions hold and
+the Dupire local volatility function is well-defined.
 
 \subsection{Calibration problem}
 
