@@ -258,7 +258,33 @@ usually it is assumed to be smooth and have some regularity.
 
 \subsection{Calibration of the Local Volatility Model - Inverse PDE problem}
 
-We will present a calibration method based on the inverse problem following \cite{inverse_option_calibration}
+We will present a calibration method based on the inverse problem following \cite{inverse_option_calibration}.
+
+\begin{definition}[Inverse Problem of Option Pricing (IPOP)]
+\label{def:ipop}
+Given market call prices $C^*(K, T)$ observed for a finite set of strikes $K$ and maturities $T$,
+find the local volatility function $\sigma = \sigma(S, t)$,
+or equivalently the diffusion coefficient $a(y, \tau) = \frac{1}{2}\sigma^2$,
+such that the solution of the Dupire forward problem \eqref{eq:inverse_pde_1}--\eqref{eq:inverse_pde_3} satisfies
+\begin{equation*}
+    u_a(y, \tau_i) = g_i(y) \qquad \text{for each observed maturity } \tau_i,
+\end{equation*}
+where $g_i(y)$ is the interpolated market price surface at maturity $\tau_i$ expressed in log-moneyness coordinates.
+\end{definition}
+
+The IPOP is inherently ill-posed in the sense of Hadamard for three reasons.
+\begin{itemize}
+    \item \textbf{Underdeterminacy.}
+    Market prices are quoted only for a finite, discrete set of strikes and maturities,
+    so the data are insufficient to uniquely determine the function $a(y,\tau)$ over a continuum.
+    \item \textbf{Noisy data.}
+    Quoted prices are affected by bid-ask spreads and market microstructure noise,
+    so the observed prices $g^\varepsilon$ satisfy $\|g^\varepsilon - g\| \leq \varepsilon$ for some noise level $\varepsilon > 0$ relative to an ideal noise-free surface $g$.
+    \item \textbf{Instability.}
+    The generalized inverse of the propagation operator $A_f$ is typically unbounded:
+    small perturbations in price data can induce large oscillations in the reconstructed volatility surface.
+\end{itemize}
+These properties motivate the use of regularisation techniques to obtain a stable, smooth reconstruction.
 
 % Mention market data and implied volatilities
 
@@ -300,7 +326,7 @@ and,
 \end{equation*}
 thus the Dupire PDE becomes,
 \begin{equation}\label{eq:inverse_pde_1}
-    u_\tau = a(y, \tau) (u_{yy} - u_y) - (r - q) u_y + q u.
+    u_\tau = a(y, \tau) (u_{yy} - u_y) - (r - q) u_y - q u.
 \end{equation}
 We consider the PDE on a bounded domain $\Omega = (\alpha, \beta) \times (0, T]$,
 with Dirichlet boundary conditions,
@@ -320,7 +346,7 @@ Thus the inverse problem is to identify the diffusion parameter $a(y, \tau)$ fro
 The proposed algorithm on \cite{inverse_option_calibration} considers to solve the problem on periods of maturities $[T_i, T_{i + 1}]$,
 for each maturity with option price data.
 
-The idea is to consider the to consider the option price function $f(y)$ at the beginning of the period $T_i$ and $g(y)$ at the end of the period $T_{i + 1}$,
+The idea is to consider the option price function $f(y)$ at the beginning of the period $T_i$ and $g(y)$ at the end of the period $T_{i + 1}$,
 then we consider a linear operator $A_f$ that maps the diffusion parameter $a$ to the price function at the end of the period,
 \begin{equation*}
     A_f(a) = u_a(T_{i + 1}, y) = g(y),
@@ -345,7 +371,7 @@ The Gâteaux derivative of $A_f$ at $a$ in the direction $h$,
 denoted by $A_f'(a)$, is given by $A_f'(a)h = w(\cdot, T)$,
 where $w(y, \tau)$ is the unique solution to the linearized variational problem:
 \begin{equation}\label{eq:gateaux_derivative}
-    - w_\tau + a(y, \tau)(w_{yy} - w_y) - (r-q)w_y + qw
+    - w_\tau + a(y, \tau)(w_{yy} - w_y) - (r-q)w_y - qw
     = - h(y, \tau)( (u_a)_{yy} - (u_a)_y ),
 \end{equation}
 subject to homogeneous initial and boundary conditions:
@@ -369,10 +395,11 @@ the action of the adjoint operator is defined via the solution to a backward par
 \begin{proposition}[Adjoint Operator]
 Let $u_a$ be the solution to the forward problem for a given volatility parameter $a$. For any $\psi \in L^2(\Omega)$, let $m(y, \tau)$ be the solution to the following adjoint backward parabolic equation:
 \begin{equation}\label{eq:adjoint_pde}
-    \frac{\partial m}{\partial \tau} 
-    + \frac{\partial^2 a(y, \tau) m}{\partial y^2} 
-    + \frac{\partial a(t, \tau) m}{\partial y} 
-    + (r-q)\frac{\partial m}{\partial y} 
+    \frac{\partial m}{\partial \tau}
+    + \frac{\partial^2 a(y, \tau) m}{\partial y^2}
+    + \frac{\partial a(y, \tau) m}{\partial y}
+    + (r-q)\frac{\partial m}{\partial y}
+    - q m
     = 0,
 \end{equation}
 subject to the final and boundary conditions:
@@ -423,7 +450,26 @@ The calibration algorithm proceeds as follow:
     \EndWhile
 \end{algorithmic}
 
-\subsubsection{Practial implementation}
+\paragraph{Positivity of the diffusion coefficient.}
+Since $a(y, \tau) = \frac{1}{2}\sigma^2(K, T)$ is a variance it must be strictly positive everywhere,
+otherwise the forward PDE loses its parabolic character and the solution degenerates.
+Any gradient step that would make $a$ negative at some points is corrected by projecting the update onto
+the admissible set $D(A_f) = \{ a : a \geq a_{\min} > 0 \}$,
+replacing negative or too-small values by the floor $a_{\min}$.
+
+\paragraph{Gradient descent versus Levenberg--Marquardt.}
+The reference \cite{inverse_option_calibration} proposes an inexact Newton method of Levenberg-Marquardt (LM) type
+combined with Tikhonov regularization of each linearized subproblem,
+\begin{equation*}
+    \min_{a}\,\bigl\|A_f(a_n) - g^\varepsilon + A_f'(a_n)(a - a_n)\bigr\|^2 + \alpha_n\,\|a - a_n\|^2,
+\end{equation*}
+with the regularization parameter $\alpha_n$ chosen via the Morozov discrepancy principle,
+giving strong stability guarantees for noisy data.
+For the present implementation we use the simpler \textit{L-BFGS-B} gradient descent,
+which is sufficient to validate the pipeline and avoids the additional complexity of an inner CG loop.
+The two approaches will be compared experimentally in future work.
+
+\subsubsection{Practical implementation}
 
 We have implemented the calibration algorithm in \textit{Python} using the \textit{FENICS} library,
 so we use finite elements to solve the forward and backward PDEs.
@@ -431,83 +477,71 @@ so we use finite elements to solve the forward and backward PDEs.
 Also we used \textit{scipy} to implement the optimization algorithm,
 in particular we used the \textit{L-BFGS-B} algorithm to perform the minimization of the objective function.
 
-First we needed to transform the PDEs into their variational forms,
-we multiply the equation $(\ref{eq:inverse_pde_1})$ by a test function $v \in H^1_0(\Omega)$ and integrate over $\Omega$,
+First we needed to transform the PDEs into their variational forms.
+We multiply equation $(\ref{eq:inverse_pde_1})$ by a test function $v \in H^1_0(\Omega)$ and integrate over $(\alpha, \beta)$,
 \begin{equation*}
-    \int_{\alpha}^{\beta} u_\tau v dy
-        = \int_{\alpha}^{\beta} a u_{yy} v dy 
-        - \int_{\alpha}^{\beta} (a + r - q) u_y dy
-        + \int_{\alpha}^{\beta} q u v dy.
+    \int_{\alpha}^{\beta} u_\tau\,v\,dy
+        = \int_{\alpha}^{\beta} a\,u_{yy}\,v\,dy
+        - \int_{\alpha}^{\beta} (a + r - q)\,u_y\,v\,dy
+        - \int_{\alpha}^{\beta} q\,u\,v\,dy.
 \end{equation*}
-Using that $(a u_y)_y = a u_{yy} + a_y u_y$ we can rewrite the second order as,
+For the second-order term we integrate by parts, using $(au_y)_y = a u_{yy} + a_y u_y$,
 \begin{equation*}
-    - \int_{\alpha}^{\beta} a u_{yy} v dy 
-        = \int_{\alpha}^{\beta} a_y u_y v dy,
-        - \int_{\alpha}^{\beta} (a u_y)_y v dy
+    \int_{\alpha}^{\beta} a\,u_{yy}\,v\,dy
+        = \int_{\alpha}^{\beta} (a u_y)_y\,v\,dy
+        = - \int_{\alpha}^{\beta} a\,u_y\,v_y\,dy
+        + \left[ a\,u_y\,v \right]_{\alpha}^{\beta},
 \end{equation*}
-then integrating by parts,
+since $v \in H^1_0(\Omega)$ the boundary term vanishes, $\left[ a\,u_y\,v \right]_{\alpha}^{\beta} = 0$.
+Since $v$ does not depend on $\tau$,
 \begin{equation*}
-    - \int_{\alpha}^{\beta} (a u_y)_y v dy
-        = \int_{\alpha}^{\beta} a u_y v_y dy
-        - \left[ a u_y v \right]_{\alpha}^{\beta},
+    \int_{\alpha}^{\beta} u_\tau\,v\,dy = \frac{d}{d\tau}\int_{\alpha}^{\beta} u\,v\,dy.
 \end{equation*}
-since $v \in H^1_0(\Omega)$ the boundary terms vanish, $\left[ a u_y v \right]_{\alpha}^{\beta} = 0$.
-Moreover for practical implementation we would like to avoid the derivative with respect to $\tau$,
-as we will use discrete time increments,
-so we can rewrite the left hand side as,
-\begin{equation*}
-    \int_{\alpha}^{\beta} u_\tau v dy
-        = \int_{\alpha}^{\beta} \frac{\partial u}{\partial \tau} v dy + \int_{\alpha}^{\beta} u \frac{\partial v}{\partial \tau} dy
-        = \frac{d}{d \tau} \int_{\alpha}^{\beta} u v dy,
-\end{equation*}
-as $v$ does not depend on $\tau$, $\frac{\partial v}{\partial \tau} = 0$.
-Thus the variational form of the forward equation is given by,
+Thus the variational form of the forward equation is,
 \begin{equation}\label{eq:variational_forward_eq}
-    \frac{d}{d \tau} \int_{\alpha}^{\beta} u v dy
-        = \int_{\alpha}^{\beta} a u_y v_y dy
-        + \int_{\alpha}^{\beta} (a + r - q) u_y v dy
-        - \int_{\alpha}^{\beta} q u v dy.
+    \frac{d}{d \tau} \int_{\alpha}^{\beta} u\,v\,dy
+        = - \int_{\alpha}^{\beta} a\,u_y\,v_y\,dy
+        - \int_{\alpha}^{\beta} (a + r - q)\,u_y\,v\,dy
+        - \int_{\alpha}^{\beta} q\,u\,v\,dy.
 \end{equation}
 
 For equation $(\ref{eq:adjoint_pde})$,
-we proceed as before,
-multiplying by a test function $v \in H^1_0(\Omega)$ and integrating over $\Omega$,
+we multiply by $v \in H^1_0(\Omega)$ and integrate over $(\alpha, \beta)$.
+The PDE reads $m_\tau = -(am)_{yy} - (am)_y - (r-q)m_y + qm$, so
 \begin{equation*}
-    \int_{\alpha}^{\beta} m_\tau v dy
-    = \int_{\alpha}^{\beta} (a m)_{yy} v dy
-    + \int_{\alpha}^{\beta} (a m)_y v dy
-    + \int_{\alpha}^{\beta} (r - q) m_y v dy,
+    \int_{\alpha}^{\beta} m_\tau\,v\,dy
+    = - \int_{\alpha}^{\beta} (am)_{yy}\,v\,dy
+    - \int_{\alpha}^{\beta} (am)_y\,v\,dy
+    - \int_{\alpha}^{\beta} (r-q)\,m_y\,v\,dy
+    + \int_{\alpha}^{\beta} q\,m\,v\,dy.
 \end{equation*}
-then we integrate by parts the second order term,
+Integrating by parts the second-order term,
 \begin{equation*}
-    \int_{\alpha}^{\beta} (a m)_{yy} v dy
-        = - \int_{\alpha}^{\beta} (a m)_y v_y dy
-        + \left[ (a m)_y v \right]_{\alpha}^{\beta},
+    \int_{\alpha}^{\beta} (am)_{yy}\,v\,dy
+        = - \int_{\alpha}^{\beta} (am)_y\,v_y\,dy
+        + \left[ (am)_y\,v \right]_{\alpha}^{\beta}
+        = - \int_{\alpha}^{\beta} (am)_y\,v_y\,dy,
 \end{equation*}
-the boundary term vanishes since $v \in H^1_0(\Omega)$.
-And for the first order terms we have,
+so $-\int (am)_{yy}\,v\,dy = +\int (am)_y\,v_y\,dy$.
+For the first-order terms,
 \begin{equation*}
-    \int_{\alpha}^{\beta} (a m)_y v dy
-        = - \int_{\alpha}^{\beta} a m v_y dy
-        + \left[ a m v \right]_{\alpha}^{\beta},
+    \int_{\alpha}^{\beta} (am)_y\,v\,dy
+        = - \int_{\alpha}^{\beta} a\,m\,v_y\,dy
+        + \left[ am\,v \right]_{\alpha}^{\beta}
+        = - \int_{\alpha}^{\beta} a\,m\,v_y\,dy,
 \end{equation*}
-as before the boundary term vanishes.
-We do the same treatment for the last term,
-\begin{equation*}
-    \int_{\alpha}^{\beta} (r - q) m_y v dy
-        = - \int_{\alpha}^{\beta} (r - q) m v_y dy.
-\end{equation*}
-So,
-also using the same treatment for $m_\tau$ as we did before,
-the variational form of the adjoint equation is given by,
+so $-\int (am)_y\,v\,dy = +\int a\,m\,v_y\,dy$,
+and similarly $-\int (r-q)\,m_y\,v\,dy = +\int (r-q)\,m\,v_y\,dy$.
+Thus the variational form of the adjoint equation is,
 \begin{equation}\label{eq:variational_adjoint_eq}
-    \frac{d}{d \tau} \int_{\alpha}^{\beta} m v dy
-        = - \int_{\alpha}^{\beta} (a m)_y v_y dy
-        - \int_{\alpha}^{\beta} a m v_y dy
-        - \int_{\alpha}^{\beta} (r - q) m v_y dy.
+    \frac{d}{d\tau}\int_{\alpha}^{\beta} m\,v\,dy
+        = \int_{\alpha}^{\beta} (am)_y\,v_y\,dy
+        + \int_{\alpha}^{\beta} a\,m\,v_y\,dy
+        + \int_{\alpha}^{\beta} (r-q)\,m\,v_y\,dy
+        + \int_{\alpha}^{\beta} q\,m\,v\,dy.
 \end{equation}
 
 
 \subsubsection{Numerical results}
 
-\subsubsection{Alternative approach Interpolation/Exaptrapolation of the IV surface - Optional}
+\subsubsection{Alternative approach Interpolation/Extrapolation of the IV surface - Optional}
