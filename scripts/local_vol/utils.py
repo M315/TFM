@@ -1,6 +1,7 @@
 from mpi4py import MPI
 
 import numpy as np
+from scipy.stats import norm
 
 import matplotlib.pyplot as plt
 
@@ -115,3 +116,55 @@ def L2_norm(u):
     local_val = fem.assemble_scalar(J_form)
     global_val = u.function_space.mesh.comm.allreduce(local_val, op=MPI.SUM)
     return np.sqrt(global_val)
+
+
+def bs_call(S0, y, r, q, sigma, tau):
+    """
+    Black-Scholes call price with log-moneyness y = log(K / S0).
+    Vectorized: y and sigma may be numpy arrays.
+    """
+    K = S0 * np.exp(y)
+    sqrtT = sigma * np.sqrt(tau)
+    d1 = (-y + (r - q + 0.5 * sigma**2) * tau) / sqrtT
+    d2 = d1 - sqrtT
+    return S0 * np.exp(-q * tau) * norm.cdf(d1) - K * np.exp(-r * tau) * norm.cdf(d2)
+
+
+def plot_multi_maturity_surface(intervals, V, title="Calibrated Local Volatility",
+                                output_file="local_vol_surface.png"):
+    """
+    Plot σ_loc(y, τ) = sqrt(2 a(y, τ)) assembled from multiple calibration intervals.
+
+    intervals: list of (t_start, t_end, Vol) ordered by t_start.
+    """
+    y_coords = V.mesh.geometry.x[:, 0]
+    sort_idx = np.argsort(y_coords)
+    y_sorted = y_coords[sort_idx]
+
+    T_all, Z_all = [], []
+    for t_start, t_end, vol_obj in intervals:
+        n_t = max(6, int((t_end - t_start) * 80))
+        for t in np.linspace(t_start, t_end, n_t):
+            a_vals = vol_obj.get(t).x.array.real[sort_idx]
+            T_all.append(t)
+            Z_all.append(2.0 * np.sqrt(np.maximum(a_vals, 0.0)))
+
+    n_t, n_y = len(T_all), len(y_sorted)
+    T_grid = np.tile(np.array(T_all)[:, None], (1, n_y))
+    Y_grid = np.tile(y_sorted,                 (n_t, 1))
+    Z_grid = np.array(Z_all)
+
+    fig = plt.figure(figsize=(12, 7))
+    ax = fig.add_subplot(111, projection="3d")
+    surf = ax.plot_surface(Y_grid, T_grid, Z_grid, cmap="plasma", edgecolor="none", alpha=0.9)
+    fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10, label=r"$\sigma_{\mathrm{loc}}$")
+
+    ax.set_title(title)
+    ax.set_xlabel("Log-moneyness  $y$")
+    ax.set_ylabel("Maturity  $\\tau$")
+    ax.set_zlabel("Local vol  $\\sigma_{\\mathrm{loc}}(y,\\tau)$")
+
+    plt.tight_layout()
+    plt.savefig(output_file, dpi=150)
+    print(f"Plot saved to {output_file}")
+    plt.show()

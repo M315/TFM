@@ -339,6 +339,30 @@ and initial condition,
     u(0, y) = f(y) = S_0 \max(1 - e^y, 0).
 \end{equation}
 
+\paragraph{Boundary conditions.}
+The functions $\Psi_1$ and $\Psi_2$ are fixed by the asymptotic behaviour of call prices in the
+log-moneyness variable $y = \log(K/S_0)$.
+
+As $\alpha \to -\infty$ the strike $K = S_0 e^y \to 0$, and a call with zero strike is equivalent
+to a long position in the stock net of dividends:
+\begin{equation}\label{eq:bc_left}
+    \Psi_1(\tau)
+        = \lim_{y \to -\infty} u(y, \tau)
+        = e^{-r\tau}\,\E^{\mathbb{Q}}[S_\tau]
+        = S_0\,e^{-q\tau}.
+\end{equation}
+As $\beta \to +\infty$ the strike $K \to \infty$ and the call is deep out of the money,
+so its price vanishes:
+\begin{equation}\label{eq:bc_right}
+    \Psi_2(\tau)
+        = \lim_{y \to +\infty} u(y, \tau)
+        = 0.
+\end{equation}
+Both limits are exact for any diffusive dynamics of the form~\eqref{eq:log-normal_diffusion}
+and hold for any value of the local volatility function.
+In practice the domain is truncated to a finite interval $(\alpha, \beta)$ with
+$\alpha$ and $\beta$ chosen large enough that the exact boundary values are a good approximation.
+
 Thus the inverse problem is to identify the diffusion parameter $a(y, \tau)$ from the initial value boundary problem defined by $(\ref{eq:inverse_pde_1})$, $(\ref{eq:inverse_pde_2})$, $(\ref{eq:inverse_pde_3})$.
 
 \subsubsection{Reconstruction algorithm}
@@ -471,11 +495,21 @@ The two approaches will be compared experimentally in future work.
 
 \subsubsection{Practical implementation}
 
-We have implemented the calibration algorithm in \textit{Python} using the \textit{FENICS} library,
-so we use finite elements to solve the forward and backward PDEs.
+We have implemented the calibration algorithm in \textit{Python} using the \textit{FEniCSx} library
+to solve the forward and adjoint PDEs with finite elements.
+The optimization is carried out with \textit{SciPy}: the \textit{L-BFGS-B} method is used when
+the number of calibration parameters is large (real market data), and a Levenberg--Marquardt
+variant (\textit{Trust Region Reflective}) is preferred for the smaller-scale paper experiment
+because it is more robust on ill-conditioned problems.
 
-Also we used \textit{scipy} to implement the optimization algorithm,
-in particular we used the \textit{L-BFGS-B} algorithm to perform the minimization of the objective function.
+For the market-data experiment the spatial domain is set to
+$(\alpha, \beta) = (-0.3,\, 0.3)$ in log-moneyness, corresponding roughly to strikes between
+$0.74\,S_0$ and $1.35\,S_0$.
+The boundary values are the analytical limits~\eqref{eq:bc_left}--\eqref{eq:bc_right}:
+$\Psi_1(\tau) = S_0 e^{-q\tau}$ and $\Psi_2(\tau) = 0$.
+The spot price $S_0$ and the rates $r$, $q$ are fetched from market data (see Section~\ref{sec:impl_vol})
+rather than hard-coded, ensuring consistency with the implied volatility surface used to construct
+the target prices $f$ and $g$.
 
 First we needed to transform the PDEs into their variational forms.
 We multiply equation $(\ref{eq:inverse_pde_1})$ by a test function $v \in H^1_0(\Omega)$ and integrate over $(\alpha, \beta)$,
