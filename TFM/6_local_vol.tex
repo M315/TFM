@@ -243,339 +243,186 @@ the Dupire local volatility function is well-defined.
 
 \subsection{Calibration problem}
 
-In both the Black-Scholes model and the Local Volatility model,
-the parameter must be calibrated to market data to make the model usable.
-We will focus on the calibration of the Volatility function $\sigma(S, t)$ in the Local Volatility model,
-and will assume that the risk-free rate $r$ and the dividend yield $q$ are known and constant.
+The local volatility model must be calibrated to market option prices to be usable.
+Given quoted call prices $C^*(K_i, T_j)$ for a finite set of strikes and maturities,
+we seek a function $\sigma(S,t)$, or equivalently $a(y,\tau) = \tfrac{1}{2}\sigma^2$,
+such that the Dupire forward equation reproduces the observed prices.
+This is an ill-posed inverse problem: market data are noisy, sparse in maturity,
+and the map from $a$ to option prices has a smoothing effect that makes its inverse discontinuous.
+We follow \cite{egger2005tikhonov} and treat the calibration as a Tikhonov regularization problem.
 
-The market data consists of option prices for different strikes $K$ and maturities $T$,
-So the calibration problem is to find a function $\sigma(S, t)$ such that the model prices $C(S_0, t_0, T, K; \sigma)$ match the observed in the market.
-While the volatility function could be any function,
-usually it is assumed to be smooth and have some regularity.
+\subsection{Tikhonov regularization of the inverse pricing problem}
 
-% Bid-ask spread
+\subsubsection{Change of variable --- log-moneyness}
 
-
-\subsection{Calibration of the Local Volatility Model - Inverse PDE problem}
-
-We will present a calibration method based on the inverse problem following \cite{inverse_option_calibration}.
-
-\begin{definition}[Inverse Problem of Option Pricing (IPOP)]
-\label{def:ipop}
-Given market call prices $C^*(K, T)$ observed for a finite set of strikes $K$ and maturities $T$,
-find the local volatility function $\sigma = \sigma(S, t)$,
-or equivalently the diffusion coefficient $a(y, \tau) = \frac{1}{2}\sigma^2$,
-such that the solution of the Dupire forward problem \eqref{eq:inverse_pde_1}--\eqref{eq:inverse_pde_3} satisfies
+Market option prices depend on the ratio $K/S_0$ rather than on the absolute strike $K$.
+Working in log-moneyness
 \begin{equation*}
-    u_a(y, \tau_i) = g_i(y) \qquad \text{for each observed maturity } \tau_i,
+    y = \log(K/S_0)
 \end{equation*}
-where $g_i(y)$ is the interpolated market price surface at maturity $\tau_i$ expressed in log-moneyness coordinates.
-\end{definition}
-
-The IPOP is inherently ill-posed in the sense of Hadamard for three reasons.
-\begin{itemize}
-    \item \textbf{Underdeterminacy.}
-    Market prices are quoted only for a finite, discrete set of strikes and maturities,
-    so the data are insufficient to uniquely determine the function $a(y,\tau)$ over a continuum.
-    \item \textbf{Noisy data.}
-    Quoted prices are affected by bid-ask spreads and market microstructure noise,
-    so the observed prices $g^\varepsilon$ satisfy $\|g^\varepsilon - g\| \leq \varepsilon$ for some noise level $\varepsilon > 0$ relative to an ideal noise-free surface $g$.
-    \item \textbf{Instability.}
-    The generalized inverse of the propagation operator $A_f$ is typically unbounded:
-    small perturbations in price data can induce large oscillations in the reconstructed volatility surface.
-\end{itemize}
-These properties motivate the use of regularisation techniques to obtain a stable, smooth reconstruction.
-
-% Mention market data and implied volatilities
-
-\subsubsection{Change of variable - Log-moneyness}
-
-Market option prices are quoted over a discrete set of strikes $K$ and maturities $T$,
-but the absolute level of the strike depends on the current price of the underlying asset $S_0$.
-To avoid this dependency and make all options comparable,
-we will work with what is called the \textit{log-moneyness},
-defined as
-\begin{equation*}
-    y = \log(K/S_0),
-\end{equation*}
-the \textit{log-moneyness} indicates how far in or out of the money is an option in logarithmic scale.
-
-We redefine the notation of the volatility function and the call option price to reassemble a more standard for PDEs,
-let us define $\tau = T$ the time to maturity,
-$a(y, \tau) = \frac{1}{2} \sigma^2(K, T)$ as the diffusion parameter,
-and $u(\tau, y) = C(S_0, t_0; T, K)$ the call option price,
-to do this change of variable to the Dupire equation first we compute the derivatives of $C$ in terms of $u$,
-with respect to $T$,
-\begin{equation*}
-    C_T 
-        = \frac{\partial u}{\partial \tau} 
-        = u_{\tau},
-\end{equation*}
-with respect to $K$ we have to apply the chain rule,
-\begin{equation*}
-    C_K
-        = \frac{\partial u}{\partial y} \frac{\partial y}{\partial K}
-        = u_y \frac{1}{K},
-\end{equation*}
-and,
-\begin{equation*}
-    C_{KK}
-        = \frac{\partial}{\partial K} \frac{u_y}{K}
-        = \frac{1}{K} \frac{\partial u_y}{\partial K} - \frac{u_y}{K^2}
-        = \frac{1}{K^2} (u_{yy} - u_y),
-\end{equation*}
-thus the Dupire PDE becomes,
+removes this dependence and puts the PDE in a translation-invariant form.
+Define the time to maturity $\tau = T$,
+the diffusion coefficient $a(y,\tau) = \tfrac{1}{2}\sigma^2(K,T)$,
+and the normalized call price $u(y,\tau) = C(S_0; K, T)/S_0$.
+A change of variables in the Dupire equation~\eqref{eq:dupire_forward} gives
 \begin{equation}\label{eq:inverse_pde_1}
-    u_\tau = a(y, \tau) (u_{yy} - u_y) - (r - q) u_y - q u.
+    u_\tau = a(y,\tau)\,(u_{yy} - u_y) - (r-q)\,u_y - q\,u,
 \end{equation}
-We consider the PDE on a bounded domain $\Omega = (\alpha, \beta) \times (0, T]$,
-with Dirichlet boundary conditions,
-\begin{equation}\label{eq:inverse_pde_2}
-    u(\tau, \alpha) = \Psi_1(\tau), \quad
-    u(\tau, \beta) = \Psi_2(\tau),
-\end{equation}
-and initial condition,
+on the truncated domain $Q_{M,T} = (-M, M) \times (0, T]$, with initial condition
 \begin{equation}\label{eq:inverse_pde_3}
-    u(0, y) = f(y) = S_0 \max(1 - e^y, 0).
+    u(y, 0) = \max(1 - e^y, 0)
 \end{equation}
-
-\paragraph{Boundary conditions.}
-The functions $\Psi_1$ and $\Psi_2$ are fixed by the asymptotic behaviour of call prices in the
-log-moneyness variable $y = \log(K/S_0)$.
-
-As $\alpha \to -\infty$ the strike $K = S_0 e^y \to 0$, and a call with zero strike is equivalent
-to a long position in the stock net of dividends:
-\begin{equation}\label{eq:bc_left}
-    \Psi_1(\tau)
-        = \lim_{y \to -\infty} u(y, \tau)
-        = e^{-r\tau}\,\E^{\mathbb{Q}}[S_\tau]
-        = S_0\,e^{-q\tau}.
+and Dirichlet boundary conditions
+\begin{equation}\label{eq:inverse_pde_2}
+    u(-M, \tau) = \Psi_1(\tau), \qquad u(M, \tau) = \Psi_2(\tau).
 \end{equation}
-As $\beta \to +\infty$ the strike $K \to \infty$ and the call is deep out of the money,
-so its price vanishes:
-\begin{equation}\label{eq:bc_right}
-    \Psi_2(\tau)
-        = \lim_{y \to +\infty} u(y, \tau)
-        = 0.
+The boundary values are determined from the Black--Scholes formula evaluated
+at the boundary strikes $K = S_0 e^{\pm M}$:
+as $M \to \infty$, the left boundary ($K \to 0$) gives the intrinsic value
+$\Psi_1(\tau) \to e^{-q\tau}$, and the right boundary ($K \to \infty$) gives $\Psi_2(\tau) \to 0$.
+
+\subsubsection{Parameter-to-solution map}
+
+For each admissible diffusion coefficient $a$, let $u(a)$ denote the solution
+to~\eqref{eq:inverse_pde_1}--\eqref{eq:inverse_pde_3}.
+Fix an \emph{a~priori} reference $a^* \in L^\infty(\mathbb{R})$ with $0 < \underline{a} \le a^* \le \bar{a}$
+and define the set of admissible parameters
+\begin{equation}\label{eq:admissible_set}
+    \mathcal{K}(a^*) = \bigl\{ a \in a^* + H^1(Q) : \underline{a} \le a \le \bar{a} \bigr\}.
 \end{equation}
-Both limits are exact for any diffusive dynamics of the form~\eqref{eq:log-normal_diffusion}
-and hold for any value of the local volatility function.
-In practice the domain is truncated to a finite interval $(\alpha, \beta)$ with
-$\alpha$ and $\beta$ chosen large enough that the exact boundary values are a good approximation.
+The \emph{parameter-to-solution map} $F = F_{a_0}$ is defined as
+\begin{equation}\label{eq:param_solution_map}
+    F(a) = u(a) - u(a_0),
+\end{equation}
+where $a_0 \in \mathbb{R}$ with $\underline{a} \le a_0 \le \bar{a}$ is a reference constant
+and $u(a_0)$ can be computed from the Black--Scholes formula.
+A key regularity result established in \cite{egger2005tikhonov} is the following.
 
-Thus the inverse problem is to identify the diffusion parameter $a(y, \tau)$ from the initial value boundary problem defined by $(\ref{eq:inverse_pde_1})$, $(\ref{eq:inverse_pde_2})$, $(\ref{eq:inverse_pde_3})$.
+\begin{theorem}[\cite{egger2005tikhonov}, Theorem 2.1]
+There exists $p^* > 2$ such that $F\colon \mathcal{K}(a^*) \to W_p^{2,1}(Q)$
+is continuous and compact for $2 \le p < p^*$, and weakly sequentially continuous.
+\end{theorem}
 
-\subsubsection{Reconstruction algorithm}
+The compactness of $F$ is the mathematical source of ill-posedness:
+similar option prices can correspond to completely different volatility surfaces,
+so the inversion of $F$ is unstable.
 
-The proposed algorithm on \cite{inverse_option_calibration} considers to solve the problem on periods of maturities $[T_i, T_{i + 1}]$,
-for each maturity with option price data.
+\subsubsection{Tikhonov functional}
 
-The idea is to consider the option price function $f(y)$ at the beginning of the period $T_i$ and $g(y)$ at the end of the period $T_{i + 1}$,
-then we consider a linear operator $A_f$ that maps the diffusion parameter $a$ to the price function at the end of the period,
+Let $u^\delta$ denote the (noisy) observed option prices with $\|u^\delta - u^\dagger\|_{L_2(Q)} \le \delta$,
+where $u^\dagger = u(a^\dagger)$ for the true (unknown) parameter $a^\dagger$.
+Following \cite{egger2005tikhonov} we stabilize the inverse problem by minimizing the
+\emph{Tikhonov functional}
+\begin{equation}\label{eq:tikhonov_functional}
+    J^\beta(a) = \|u(a) - u^\delta\|^2_{L_2} + \beta\,\|a - a^*\|^2_{H^1},
+\end{equation}
+where $\beta > 0$ is the regularization parameter, $u^\delta$ is the observation
+(option prices at a fixed maturity $T_0$), and $a^*$ is the \emph{a~priori} guess that
+encodes any structural knowledge about the volatility (e.g., smoothness or decay for large $|y|$).
+The first term penalizes mismatch with data; the second term penalizes deviation of $a$
+from $a^*$ in $H^1$, which promotes smooth reconstructions.
+
+The $H^1$ norm in the penalty is
 \begin{equation*}
-    A_f(a) = u_a(T_{i + 1}, y) = g(y),
+    \|a - a^*\|^2_{H^1} = \int_{-M}^{M} \bigl[(a-a^*)^2 + (\partial_y(a-a^*))^2\bigr]\,dy.
 \end{equation*}
-and we want to find $a$ such that this equality holds.
 
-This approach transforms the nonlinear inverse problem into a series of linear problems,
-that are solvable using a Newton-type method.
+\begin{proposition}[\cite{egger2005tikhonov}, Proposition 3.1--3.2]
+For any $\beta > 0$ a minimizer $a^\delta_\beta$ of $J^\beta$ exists.
+If $\delta \to 0$ and $\beta(\delta) \to 0$ with $\delta^2/\beta(\delta) \to 0$,
+then every sequence of minimizers $\{a^{\delta_k}_{\beta(\delta_k)}\}$
+has a convergent subsequence, and every limit point is an $a^*$-minimum-norm solution.
+\end{proposition}
 
-% Formal definition of the operator, spaces and smoothness of function f and g
+\subsubsection{Gradient computation via the adjoint method}
 
-
-\subsubsection{Linear operator - Gateaux derivative}
-
-To apply Newton-like methods we first need to compute the Gâteaux derivative of the operator $A_f$.
-This will give a linear approximation of the operator around a given point,
-that we will use to transform our nonlinear problem into a series of linear problems.
-
-\begin{proposition}
-Let $a \in L^\infty(\Omega)$ be a coefficient such that the forward problem admits a unique solution $u_a$.
-The Gâteaux derivative of $A_f$ at $a$ in the direction $h$,
-denoted by $A_f'(a)$, is given by $A_f'(a)h = w(\cdot, T)$,
-where $w(y, \tau)$ is the unique solution to the linearized variational problem:
+To minimize $J^\beta$ by gradient-based methods we need its Gâteaux derivative.
+The \emph{directional derivative} of the data-fidelity term at $a$ in direction $h$ is
+\begin{equation*}
+    \frac{d}{d\varepsilon}\|u(a+\varepsilon h) - u^\delta\|^2_{L_2}\Big|_{\varepsilon=0}
+    = 2\bigl(u(a) - u^\delta,\; u'(a)[h]\bigr)_{L_2},
+\end{equation*}
+where $u'(a)[h] = w(\cdot, T_0)$ is the solution of the \emph{linearized} forward equation
 \begin{equation}\label{eq:gateaux_derivative}
-    - w_\tau + a(y, \tau)(w_{yy} - w_y) - (r-q)w_y - qw
-    = - h(y, \tau)( (u_a)_{yy} - (u_a)_y ),
+    -w_\tau + a(w_{yy} - w_y) = -h\,(u_{yy} - u_y),
+    \quad w(y,0)=0, \quad w\big|_{\partial\Omega}=0.
 \end{equation}
-subject to homogeneous initial and boundary conditions:
-\begin{align}
-    w(0, y) &= 0, & y \in (\alpha, \beta), \\
-    w(\tau, \alpha) &= 0, \quad w(\tau, \beta) = 0, & \tau \in [0, T].
-\end{align}
-\end{proposition}
-
-
-\subsubsection{Adjoint operator}
-
-To implement gradient-based minimization algorithms efficiently,
-we introduce the adjoint of the Gâteaux derivative,
-referred as the backpropagation operator in \cite{inverse_option_calibration}.
-
-Let $A_f'(a)^*: L^2(\Omega) \to L^2(\Omega \times [0, T])$ denote the adjoint operator.
-For a given residual $\psi \in L^2(\Omega)$ (e.g., $\psi = A_f(a) - g$),
-the action of the adjoint operator is defined via the solution to a backward parabolic problem.
-
-\begin{proposition}[Adjoint Operator]
-Let $u_a$ be the solution to the forward problem for a given volatility parameter $a$. For any $\psi \in L^2(\Omega)$, let $m(y, \tau)$ be the solution to the following adjoint backward parabolic equation:
+Rather than solving~\eqref{eq:gateaux_derivative} for every direction $h$,
+the gradient is evaluated efficiently via a single \emph{adjoint solve}.
+Let $V(y,\tau)$ solve the backward parabolic problem
 \begin{equation}\label{eq:adjoint_pde}
-    \frac{\partial m}{\partial \tau}
-    + \frac{\partial^2 a(y, \tau) m}{\partial y^2}
-    + \frac{\partial a(y, \tau) m}{\partial y}
-    + (r-q)\frac{\partial m}{\partial y}
-    - q m
-    = 0,
+    V_\tau + (aV)_{yy} + (aV)_y + (r-q)V_y - qV = 0,
+    \qquad V(y, T_0) = u(a)(y, T_0) - u^\delta(y),
 \end{equation}
-subject to the final and boundary conditions:
-\begin{align}
-    m(y, T) &= \psi(y), & y \in (\alpha, \beta), \\
-    m(\alpha, \tau) &= 0, \quad m(\beta, \tau) = 0, & \tau \in [0, T).
-\end{align}
-Then, the adjoint operator applied to $\psi$ is given by:
-\begin{equation}
-    A_f'(a)^* \psi 
-        = m \left(
-            \frac{\partial^2 u_a}{\partial y^2} 
-            - \frac{\partial u_a}{\partial y} 
-            \right).
+with homogeneous Dirichlet conditions at $y = \pm M$ and integrated backward in $\tau$.
+Then the Gâteaux derivative satisfies \cite{egger2005tikhonov}
+\begin{equation*}
+    \bigl(u'(a)[h],\, u(a)-u^\delta\bigr)_{L_2}
+    = -\int_0^{T_0}\!\!\int_{-M}^{M} h(y)\,(u_{yy}-u_y)\,V\,dy\,d\tau.
+\end{equation*}
+Adding the $H^1$ regularization term, the total gradient direction (in $L^2$ sense) is
+\begin{equation}\label{eq:tikhonov_gradient}
+    \langle \nabla J^\beta(a),\, h \rangle
+    = -2\int_0^{T_0}\!\!\int_{-M}^{M} h\,(u_{yy}-u_y)\,V\,dy\,d\tau
+      + 2\beta\int_{-M}^{M}\bigl[(a-a^*)h + \partial_y(a-a^*)\partial_y h\bigr]dy.
 \end{equation}
-\end{proposition}
+The second term is the $H^1$ inner product $(a-a^*, h)_{H^1}$,
+whose Euclidean (DOF-level) representation is $(M + K)(a - a^*)$,
+where $M$ and $K$ are the finite-element mass and stiffness matrices.
 
-In the case where the volatility parameter $a(y)$ is assumed to be time-independent, the adjoint operator maps into $L^2(\alpha, \beta)$ by integrating the time-dependent sensitivity over the duration of the option:
-\begin{corollary}[Time-Independent Case]
-If $a = a(y)$, the gradient of the objective function with respect to $a$ is given by:
-\begin{equation}
-    A_f'(a)^* \psi 
-        = \int_0^T m(\cdot, \tau) \left(
-            \frac{\partial^2 u_a}{\partial y^2}(\cdot, \tau) 
-            - \frac{\partial u_a}{\partial y}(\cdot, \tau) 
-            \right) \, d\tau.
-\end{equation}
-\end{corollary}
+\subsubsection{Choice of $\beta$ and stopping criterion}
 
-
-\subsubsection{Algorithm}
-
-As mentioned before the time dimension is not used in this procedure,
-instead what we do is discretize the time from $t$ to $T$ into intervals and forward propagate the function $u$ using $A_f$ for each interval,
-then we compute the residual with respect to $g$ at $T$ and use the backpropagation operator to compute the gradients for each interval,
-backwards, and use them to update the parameter $a$.
-The calibration algorithm proceeds as follow:
-
-\begin{algorithmic}
-    \State Set the functional spaces for $a$ and $u$.
-    \State Set the boundary and initial conditions for the forward problem.
-    \State Initialize the volatility parameter $a$.
-    \State Compute the target option price function $g(y)$ from market data.
-    \While{$\| u_a(y) - g(y) \| > tolerance$}
-        \State $u_a \gets A_f(a)$
-        \State $\nabla_{a}^{*} \gets A'_f(a)^{*}(u_a - g)$
-        \State $a \gets$ Update $a$ using gradient descent step.
-    \EndWhile
-\end{algorithmic}
-
-\paragraph{Positivity of the diffusion coefficient.}
-Since $a(y, \tau) = \frac{1}{2}\sigma^2(K, T)$ is a variance it must be strictly positive everywhere,
-otherwise the forward PDE loses its parabolic character and the solution degenerates.
-Any gradient step that would make $a$ negative at some points is corrected by projecting the update onto
-the admissible set $D(A_f) = \{ a : a \geq a_{\min} > 0 \}$,
-replacing negative or too-small values by the floor $a_{\min}$.
-
-\paragraph{Gradient descent versus Levenberg--Marquardt.}
-The reference \cite{inverse_option_calibration} proposes an inexact Newton method of Levenberg-Marquardt (LM) type
-combined with Tikhonov regularization of each linearized subproblem,
+In the numerical experiments of \cite{egger2005tikhonov} the regularization parameter
+is chosen by a decreasing sequence
 \begin{equation*}
-    \min_{a}\,\bigl\|A_f(a_n) - g^\varepsilon + A_f'(a_n)(a - a_n)\bigr\|^2 + \alpha_n\,\|a - a_n\|^2,
+    \beta_0 > \beta_1 > \cdots > \beta_n = 10^{-5}\delta,
 \end{equation*}
-with the regularization parameter $\alpha_n$ chosen via the Morozov discrepancy principle,
-giving strong stability guarantees for noisy data.
-For the present implementation we use the simpler \textit{L-BFGS-B} gradient descent,
-which is sufficient to validate the pipeline and avoids the additional complexity of an inner CG loop.
-The two approaches will be compared experimentally in future work.
+minimizing $J^{\beta_i}$ sequentially, warm-starting each minimization from the previous minimizer.
+The sequence is stopped when the Morozov discrepancy principle
+$\|u(a^\delta_\beta) - u^\delta\| \le \tau\delta$ is satisfied for some $\tau > 1$.
+For exact data ($\delta = 0$) a single fixed $\beta$ is used.
 
-\subsubsection{Practical implementation}
+\subsubsection{Variational forms and finite-element discretization}
 
-We have implemented the calibration algorithm in \textit{Python} using the \textit{FEniCSx} library
-to solve the forward and adjoint PDEs with finite elements.
-The optimization is carried out with \textit{SciPy}: the \textit{L-BFGS-B} method is used when
-the number of calibration parameters is large (real market data), and a Levenberg--Marquardt
-variant (\textit{Trust Region Reflective}) is preferred for the smaller-scale paper experiment
-because it is more robust on ill-conditioned problems.
-
-For the market-data experiment the spatial domain is set to
-$(\alpha, \beta) = (-0.3,\, 0.3)$ in log-moneyness, corresponding roughly to strikes between
-$0.74\,S_0$ and $1.35\,S_0$.
-The boundary values are the analytical limits~\eqref{eq:bc_left}--\eqref{eq:bc_right}:
-$\Psi_1(\tau) = S_0 e^{-q\tau}$ and $\Psi_2(\tau) = 0$.
-The spot price $S_0$ and the rates $r$, $q$ are fetched from market data (see Section~\ref{sec:impl_vol})
-rather than hard-coded, ensuring consistency with the implied volatility surface used to construct
-the target prices $f$ and $g$.
-
-First we needed to transform the PDEs into their variational forms.
-We multiply equation $(\ref{eq:inverse_pde_1})$ by a test function $v \in H^1_0(\Omega)$ and integrate over $(\alpha, \beta)$,
-\begin{equation*}
-    \int_{\alpha}^{\beta} u_\tau\,v\,dy
-        = \int_{\alpha}^{\beta} a\,u_{yy}\,v\,dy
-        - \int_{\alpha}^{\beta} (a + r - q)\,u_y\,v\,dy
-        - \int_{\alpha}^{\beta} q\,u\,v\,dy.
-\end{equation*}
-For the second-order term we integrate by parts, using $(au_y)_y = a u_{yy} + a_y u_y$,
-\begin{equation*}
-    \int_{\alpha}^{\beta} a\,u_{yy}\,v\,dy
-        = \int_{\alpha}^{\beta} (a u_y)_y\,v\,dy
-        = - \int_{\alpha}^{\beta} a\,u_y\,v_y\,dy
-        + \left[ a\,u_y\,v \right]_{\alpha}^{\beta},
-\end{equation*}
-since $v \in H^1_0(\Omega)$ the boundary term vanishes, $\left[ a\,u_y\,v \right]_{\alpha}^{\beta} = 0$.
-Since $v$ does not depend on $\tau$,
-\begin{equation*}
-    \int_{\alpha}^{\beta} u_\tau\,v\,dy = \frac{d}{d\tau}\int_{\alpha}^{\beta} u\,v\,dy.
-\end{equation*}
-Thus the variational form of the forward equation is,
+The forward PDE~\eqref{eq:inverse_pde_1} is discretized in space with
+$P_1$ finite elements on a uniform mesh of $[-M, M]$ and in time with the
+implicit Euler scheme.
+Multiplying by a test function $v \in H^1_0(-M,M)$ and integrating by parts gives
 \begin{equation}\label{eq:variational_forward_eq}
-    \frac{d}{d \tau} \int_{\alpha}^{\beta} u\,v\,dy
-        = - \int_{\alpha}^{\beta} a\,u_y\,v_y\,dy
-        - \int_{\alpha}^{\beta} (a + r - q)\,u_y\,v\,dy
-        - \int_{\alpha}^{\beta} q\,u\,v\,dy.
+    \frac{d}{d\tau}\int_{-M}^{M} u\,v\,dy
+    = -\int_{-M}^{M} a\,u_y\,v_y\,dy
+      -\int_{-M}^{M}(a + r - q)\,u_y\,v\,dy
+      -\int_{-M}^{M} q\,u\,v\,dy.
 \end{equation}
-
-For equation $(\ref{eq:adjoint_pde})$,
-we multiply by $v \in H^1_0(\Omega)$ and integrate over $(\alpha, \beta)$.
-The PDE reads $m_\tau = -(am)_{yy} - (am)_y - (r-q)m_y + qm$, so
-\begin{equation*}
-    \int_{\alpha}^{\beta} m_\tau\,v\,dy
-    = - \int_{\alpha}^{\beta} (am)_{yy}\,v\,dy
-    - \int_{\alpha}^{\beta} (am)_y\,v\,dy
-    - \int_{\alpha}^{\beta} (r-q)\,m_y\,v\,dy
-    + \int_{\alpha}^{\beta} q\,m\,v\,dy.
-\end{equation*}
-Integrating by parts the second-order term,
-\begin{equation*}
-    \int_{\alpha}^{\beta} (am)_{yy}\,v\,dy
-        = - \int_{\alpha}^{\beta} (am)_y\,v_y\,dy
-        + \left[ (am)_y\,v \right]_{\alpha}^{\beta}
-        = - \int_{\alpha}^{\beta} (am)_y\,v_y\,dy,
-\end{equation*}
-so $-\int (am)_{yy}\,v\,dy = +\int (am)_y\,v_y\,dy$.
-For the first-order terms,
-\begin{equation*}
-    \int_{\alpha}^{\beta} (am)_y\,v\,dy
-        = - \int_{\alpha}^{\beta} a\,m\,v_y\,dy
-        + \left[ am\,v \right]_{\alpha}^{\beta}
-        = - \int_{\alpha}^{\beta} a\,m\,v_y\,dy,
-\end{equation*}
-so $-\int (am)_y\,v\,dy = +\int a\,m\,v_y\,dy$,
-and similarly $-\int (r-q)\,m_y\,v\,dy = +\int (r-q)\,m\,v_y\,dy$.
-Thus the variational form of the adjoint equation is,
+The adjoint equation~\eqref{eq:adjoint_pde} is run backward in $\tau$;
+its weak form (with $m = V$, $m_\tau = -(am)_{yy} - (am)_y - (r-q)m_y + qm$) is
 \begin{equation}\label{eq:variational_adjoint_eq}
-    \frac{d}{d\tau}\int_{\alpha}^{\beta} m\,v\,dy
-        = \int_{\alpha}^{\beta} (am)_y\,v_y\,dy
-        + \int_{\alpha}^{\beta} a\,m\,v_y\,dy
-        + \int_{\alpha}^{\beta} (r-q)\,m\,v_y\,dy
-        + \int_{\alpha}^{\beta} q\,m\,v\,dy.
+    \frac{d}{d\tau}\int_{-M}^{M} m\,v\,dy
+    = \int_{-M}^{M}(am)_y\,v_y\,dy
+      +\int_{-M}^{M} a\,m\,v_y\,dy
+      +\int_{-M}^{M}(r-q)\,m\,v_y\,dy
+      +\int_{-M}^{M} q\,m\,v\,dy.
 \end{equation}
+Both systems are solved with a direct LU factorization at each time step.
+Gradient updates are assembled from~\eqref{eq:tikhonov_gradient} using the stored forward trajectory
+and the backward adjoint solution.
 
+\subsubsection{Numerical experiment --- Example 1}
 
-\subsubsection{Numerical results}
+We reproduce Example 1 of \cite{egger2005tikhonov}:
+constant volatility recovery on $y \in [-3,3]$, $\tau \in [0,1]$, with $r = q = 0$.
+The true parameter is
+\[
+    a^\dagger = 0.15 \quad \Longleftrightarrow \quad \sigma^\dagger = \sqrt{2 \times 0.15} \approx 0.548.
+\]
+Data $u^\delta$ are the exact option prices at $\tau = T = 1$ generated from the
+Black--Scholes formula (no noise, case A of the paper).
+The initial guess and $a^*$ are both set to
+\[
+    a^*_1(y) = 0.15 - 0.05\,\operatorname{erf}(-y^2),
+\]
+which has the correct Gaussian decay for large $|y|$ required for the convergence
+rate theorems 4.1--4.2 of \cite{egger2005tikhonov}.
+The regularization parameter is $\beta = 10^{-6}$ (exact data, so small noise level).
 
-\subsubsection{Alternative approach Interpolation/Extrapolation of the IV surface - Optional}
+\subsubsection{Alternative approach: Interpolation/Extrapolation of the IV surface}\label{sec:impl_vol}

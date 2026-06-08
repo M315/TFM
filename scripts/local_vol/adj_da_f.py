@@ -1,18 +1,20 @@
 from petsc4py.PETSc import ScalarType
+from petsc4py import PETSc
 import ufl
 from dolfinx import fem
-from dolfinx.fem.petsc import LinearProblem
+from dolfinx.fem.petsc import LinearProblem, assemble_vector
 
 from utils import create_bcs
 
 
 def compute_adj_dAf(a_vol, residual, trajectory, dt, M_time, V, r, q, y_0, y_1, t_0):
     """
-    Computes the L2 gradient of ½||A_f(a) - g||² w.r.t. a via the adjoint method.
+    Computes the Euclidean gradient ∂J/∂a_j of ½||A_f(a) - g||² w.r.t. the DOF
+    vector of a, via the adjoint method.
 
     The adjoint state m is initialized with (A_f(a) - g) at the terminal time and
-    propagated backward. At each step the gradient contribution is accumulated into
-    the corresponding time-slice bucket of a_vol.
+    propagated backward. At each step the gradient contribution ∂J/∂a_j is assembled
+    as a linear 1-form and accumulated into the corresponding time-slice bucket of a_vol.
 
     Returns (gradients, m_at_t0).
     """
@@ -44,25 +46,29 @@ def compute_adj_dAf(a_vol, residual, trajectory, dt, M_time, V, r, q, y_0, y_1, 
 
 def _adjoint_step(m_curr, u_t, a_func, dt, V, r_rate, q_rate, bcs):
     """
-    One backward-Euler step of the time-reversed adjoint equation.
+    One backward-Euler step of the adjoint equation, plus the gradient contribution.
 
-    The adjoint PDE (written in the forward-reversed-time variable τ' = T - τ):
+    The adjoint PDE (in reverse time τ' = T - τ):
 
         M_{τ'} = (a M)_yy + (a M)_y + (r-q) M_y - q M
 
-    Backward-Euler weak form (m = M^{n+1} unknown, m_1 = M^n = m_curr known):
+    Backward-Euler weak form (m unknown, m_curr = previous adjoint state):
 
-        ∫(m - m_1) v dy
+        ∫(m - m_curr) v dy
         + dt [ ∫ a m_y v_y dy
-             + ∫ a_y m v_y dy        (two terms together: ∫(am)_y v_y dy)
+             + ∫ a_y m v_y dy
              + ∫ (a + r - q) m v_y dy
              + ∫ q m v dy ] = 0
 
-    Gradient contribution (L2 projection):
+    Gradient contribution — Euclidean gradient ∂J/∂a_j, assembled as a 1-form:
 
-        g_inc(y)  such that  ∫ g_inc h dy = -dt ∫ (u_y m_y + u_y m) h dy  ∀h ∈ V
+        g_j = -dt ∫ [φ_j u_y m_y   (from B1 = ∫ a u_y v_y)
+                   + φ_{j,y} u_y m   (from B2 = ∫ a_y u_y v)
+                   + φ_j u_y m]      (from B3 = ∫ (a+r-q) u_y v)
 
-    This equals dt ∫ m (u_yy - u_y) h dy after IBP with h = 0 on ∂Ω.
+    The B2 term involves φ_{j,y} (test-function derivative) and cannot be
+    captured by projecting a pointwise expression via the mass matrix.
+    Direct 1-form assembly gives the correct Euclidean gradient for L-BFGS-B.
     """
     m = ufl.TrialFunction(V)
     v = ufl.TestFunction(V)
@@ -88,20 +94,21 @@ def _adjoint_step(m_curr, u_t, a_func, dt, V, r_rate, q_rate, bcs):
     ).solve()
 
     # --- gradient contribution ---
-    # Pointwise expression: -dt * (u_y m_y + u_y m)
-    # Projected onto V via mass-matrix solve so the result lives in the FEM space.
-    g_expr = -dt_c * (
-        ufl.dot(ufl.grad(u_t), ufl.grad(m_new))   # u_y m_y
-        + u_t.dx(0) * m_new                        # u_y m
+    # Assemble ∂J/∂a_j directly as a linear 1-form (no mass-matrix solve).
+    # Uses the test function φ_j and its derivative φ_{j,y} to capture all
+    # three terms from differentiating the forward bilinear form w.r.t. a_j.
+    h_test = ufl.TestFunction(V)
+    grad_form = fem.form(
+        -dt_c * (
+            ufl.dot(ufl.grad(u_t), ufl.grad(m_new)) * h_test   # B1: ∫ u_y m_y φ_j
+            + u_t.dx(0) * m_new * h_test.dx(0)                  # B2: ∫ u_y m φ_{j,y}
+            + u_t.dx(0) * m_new * h_test                        # B3: ∫ u_y m φ_j
+        ) * ufl.dx
     )
+    b = assemble_vector(grad_form)
+    b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
 
-    g_trial = ufl.TrialFunction(V)
-    v_test  = ufl.TestFunction(V)
-    g_func = LinearProblem(
-        ufl.inner(g_trial, v_test) * ufl.dx,
-        ufl.inner(g_expr,  v_test) * ufl.dx,
-        petsc_options_prefix="grad_proj",
-        petsc_options={"ksp_type": "preonly", "pc_type": "lu"},
-    ).solve()
+    g_func = fem.Function(V)
+    g_func.x.array[:] = b.array_r
 
     return m_new, g_func

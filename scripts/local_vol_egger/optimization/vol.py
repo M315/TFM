@@ -1,0 +1,59 @@
+"""
+Vol — piecewise-constant-in-time parameter container.
+
+Represents the diffusion coefficient a(y,τ) = ½σ²(y,τ) as a list of
+N FEM Functions, each constant over the time slice [t_0 + i·Δτ, t_0 + (i+1)·Δτ].
+
+Used by all calibration methods and the PDE solvers.
+"""
+
+import numpy as np
+from dolfinx import fem
+
+
+class Vol:
+
+    def __init__(self, V, init_func: fem.Function, t_0: float, t_1: float, N: int):
+        """
+        Parameters
+        ----------
+        V         : FunctionSpace
+        init_func : FEM Function used as the starting value for every slice
+                    (copied N times; subsequent optimisation updates the copies)
+        t_0, t_1  : float — time interval [t_0, t_1] covered by this Vol object
+        N         : int — number of time slices (N=1 → time-independent a)
+        """
+        self.t_0 = t_0
+        self.t_1 = t_1
+        self.a   = [init_func.copy() for _ in range(N)]
+
+    # ------------------------------------------------------------------
+    # Time-slice look-up
+    # ------------------------------------------------------------------
+
+    def get_idx(self, t: float) -> int:
+        """Index of the slice that contains time t."""
+        if t < self.t_0 or t > self.t_1:
+            raise ValueError(f"t={t} outside Vol range [{self.t_0}, {self.t_1}]")
+        if t == self.t_1:
+            return len(self.a) - 1
+        dt = (self.t_1 - self.t_0) / len(self.a)
+        return int((t - self.t_0) / dt)
+
+    def get(self, t: float) -> fem.Function:
+        """FEM Function for the slice containing time t."""
+        return self.a[self.get_idx(t)]
+
+    # ------------------------------------------------------------------
+    # Flat DOF vector interface (used by scipy optimisers)
+    # ------------------------------------------------------------------
+
+    def update(self, V, a_vec: np.ndarray) -> None:
+        """Write a flat DOF vector back into the per-slice functions."""
+        dof_size = V.dofmap.index_map.size_global
+        for i, func in enumerate(self.a):
+            func.x.array[:] = a_vec[i * dof_size:(i + 1) * dof_size]
+
+    def to_vec(self) -> np.ndarray:
+        """Return a flat DOF vector concatenating all time slices."""
+        return np.concatenate([func.x.array for func in self.a])

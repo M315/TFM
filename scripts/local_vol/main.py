@@ -1,5 +1,5 @@
 """
-Local vol calibration — entry point.
+Local vol calibration (Lakhal et al.) — entry point.
 
 Toggle EXPERIMENT below, or run the example files directly:
 

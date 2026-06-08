@@ -6,13 +6,18 @@ from dolfinx.fem.petsc import LinearProblem
 from utils import create_bcs
 
 
-def compute_dAf(a_vol, h_func, trajectory, dt, M_time, V, r, q, y_0, y_1, t_0):
+def compute_dAf(a_vol, h_func, trajectory, dt, M_time, V, r, q, y_0, y_1, t_0,
+                active_slice=None):
     """
-    Computes the Gâteaux derivative A'_f(a) · h  by integrating the linearized
+    Computes the Gâteaux derivative A'_f(a) · h by integrating the linearized
     PDE forward from t_0.
 
-    Used for gradient checking (compare with finite-difference on A_f);
-    not called in the calibration loop.
+    active_slice: if given (int), h_func is applied only in the time steps
+    belonging to that Vol slice index (used by the analytical Jacobian to
+    isolate per-slice parameter sensitivities).  Default None applies h
+    uniformly across all steps.
+
+    Used for gradient checking and the analytical Jacobian in the LM solver.
     """
     w = fem.Function(V)
     w.x.array[:] = 0.0     # w(t_0) = 0  (IC does not depend on a)
@@ -20,11 +25,20 @@ def compute_dAf(a_vol, h_func, trajectory, dt, M_time, V, r, q, y_0, y_1, t_0):
     zero = fem.Constant(V.mesh, 0.0)
     bcs  = create_bcs(V, y_0, y_1, zero, zero)
 
+    zero_fn = fem.Function(V)   # zero perturbation for inactive slices
+    zero_fn.x.array[:] = 0.0
+
     for t in range(M_time):
         current_time = t_0 + (t + 1) * dt
         a   = a_vol.get(current_time)
         u_t = trajectory[t]           # u at the START of this step
-        w   = _linearized_step(w, u_t, a, h_func, dt, V, r, q, bcs)
+
+        if active_slice is not None and a_vol.get_idx(current_time) != active_slice:
+            h_active = zero_fn
+        else:
+            h_active = h_func
+
+        w = _linearized_step(w, u_t, a, h_active, dt, V, r, q, bcs)
 
     return w
 

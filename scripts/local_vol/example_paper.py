@@ -74,9 +74,11 @@ def run():
 
     # LM is more robust for the ill-conditioned paper experiment.
     # N_CAL_SLICES=3 keeps N_params = 3×71 ≈ 213, making the FD Jacobian cheap.
+    # ftol/xtol matched to the noise floor (NOISE=5e-4) so the solver stops
+    # once it can no longer improve beyond what the noise allows.
     a_cal, _ = run_calibration(
         f, g, a_init, V, R, Q, Y0, Y1, T0, T1, M_TIME, psi_1, psi_2,
-        method='LM', max_iter=100,
+        method='LM', max_iter=20, ftol=1e-4, xtol=1e-4,
     )
 
     plot_calibration_result_3d(a_cal, V, T0, T1, title="Paper experiment — calibrated local vol")
