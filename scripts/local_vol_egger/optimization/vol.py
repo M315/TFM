@@ -1,31 +1,32 @@
-"""
-Vol — piecewise-constant-in-time parameter container.
+r"""
+Vol - piecewise-constant-in-time parameter container.
 
-Represents the diffusion coefficient a(y,τ) = ½σ²(y,τ) as a list of
-N FEM Functions, each constant over the time slice [t_0 + i·Δτ, t_0 + (i+1)·Δτ].
+Represents the diffusion coefficient a(y,\tau) = \frac{1}{2}\sigma^2(y,\tau) as a list of
+N dolfin Functions, each constant over the time slice
+[t_0 + i\cdot\Delta\tau, t_0 + (i+1)\cdot\Delta\tau].
 
 Used by all calibration methods and the PDE solvers.
 """
 
 import numpy as np
-from dolfinx import fem
+from dolfin import Function
 
 
 class Vol:
 
-    def __init__(self, V, init_func: fem.Function, t_0: float, t_1: float, N: int):
-        """
+    def __init__(self, V, init_func: Function, t_0: float, t_1: float, N: int):
+        r"""
         Parameters
         ----------
         V         : FunctionSpace
-        init_func : FEM Function used as the starting value for every slice
-                    (copied N times; subsequent optimisation updates the copies)
-        t_0, t_1  : float — time interval [t_0, t_1] covered by this Vol object
-        N         : int — number of time slices (N=1 → time-independent a)
+        init_func : Function used as the starting value for every slice
+                    (deep-copied N times; subsequent optimisation updates the copies)
+        t_0, t_1  : float - time interval [t_0, t_1] covered by this Vol object
+        N         : int - number of time slices (N=1 \to time-independent a)
         """
         self.t_0 = t_0
         self.t_1 = t_1
-        self.a   = [init_func.copy() for _ in range(N)]
+        self.a   = [init_func.copy(deepcopy=True) for _ in range(N)]
 
     # ------------------------------------------------------------------
     # Time-slice look-up
@@ -40,8 +41,8 @@ class Vol:
         dt = (self.t_1 - self.t_0) / len(self.a)
         return int((t - self.t_0) / dt)
 
-    def get(self, t: float) -> fem.Function:
-        """FEM Function for the slice containing time t."""
+    def get(self, t: float) -> Function:
+        """Function for the slice containing time t."""
         return self.a[self.get_idx(t)]
 
     # ------------------------------------------------------------------
@@ -50,10 +51,11 @@ class Vol:
 
     def update(self, V, a_vec: np.ndarray) -> None:
         """Write a flat DOF vector back into the per-slice functions."""
-        dof_size = V.dofmap.index_map.size_global
+        dof_size = V.dim()
         for i, func in enumerate(self.a):
-            func.x.array[:] = a_vec[i * dof_size:(i + 1) * dof_size]
+            func.vector().set_local(a_vec[i * dof_size:(i + 1) * dof_size])
+            func.vector().apply("insert")
 
     def to_vec(self) -> np.ndarray:
         """Return a flat DOF vector concatenating all time slices."""
-        return np.concatenate([func.x.array for func in self.a])
+        return np.concatenate([func.vector().get_local() for func in self.a])

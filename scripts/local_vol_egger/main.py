@@ -1,5 +1,5 @@
 """
-Egger & Engl (2005) — entry point.
+Egger & Engl (2005) -- entry point.
 
 Set EXAMPLE below, then run from this directory:
 
@@ -11,7 +11,7 @@ Or run an example file directly:
 """
 
 # Available examples:
-#   "example1"  — §5.4 Example 1, case A: constant vol recovery (no noise)
+#   "example1"  - \S5.4 Example 1, case A: constant vol recovery (no noise)
 EXAMPLE = "example1"
 
 if __name__ == "__main__":

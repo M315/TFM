@@ -1,128 +1,120 @@
-"""
-Adjoint PDE solver — operator adj_dA_f.
+r"""
+Adjoint PDE solver - operator adj_dA_f.
 
 Solves the backward adjoint equation
 
-    V_τ + (aV)_yy + (aV)_y + (r−q) V_y − qV = 0,   V(y, T) = residual(y)
+    V_\tau + (aV)_yy + (aV)_y + (r-q) V_y - qV = 0,   V(y, T) = residual(y)
 
-backward in τ and accumulates the Euclidean gradient
+backward in \tau and accumulates the Euclidean gradient
 
-    ∂J/∂a_j = −dt ∫ [ u_y m_y φ_j  +  u_y m ∂_y φ_j  +  u_y m φ_j ] dy
+    \partial J/\partial a_j = -dt \int [ u_y m_y \phi_j  +  u_y m \partial_y \phi_j  +  u_y m \phi_j ] dy
 
-where m = V and φ_j are the FEM basis functions.
+where m = V and \phi_j are the FEM basis functions.
 
 The gradient is assembled directly as a linear 1-form (no mass-matrix solve),
 which gives the correct Euclidean (DOF-level) gradient for L-BFGS-B.
 """
 
-from petsc4py.PETSc import ScalarType
-from petsc4py import PETSc
-import ufl
-from dolfinx import fem
-from dolfinx.fem.petsc import LinearProblem, assemble_vector
+from dolfin import (
+    TrialFunction, TestFunction, Function, Constant,
+    grad, dot, dx, lhs, rhs, solve, assemble,
+)
 
-from utils import create_bcs
+from utils import create_bcs, get_array, set_array
 
 
 def compute_adj_dAf(a_vol, residual, trajectory, dt, M_time, V, r, q, y_0, y_1, t_0):
-    """
-    Compute the gradient of ½‖A_f(a) − g‖²_{L²} w.r.t. the DOF vector of a.
+    r"""
+    Compute the gradient of \frac{1}{2}\|A_f(a) - g\|^2_{L^2} w.r.t. the DOF vector of a.
 
     Parameters
     ----------
     a_vol     : Vol
-    residual  : FEM Function — A_f(a) − g  (adjoint terminal condition)
-    trajectory: list of FEM Functions — forward trajectory from compute_Af
+    residual  : Function - A_f(a) - g  (adjoint terminal condition)
+    trajectory: list of Functions - forward trajectory from compute_Af
     dt        : float
     M_time    : int
 
     Returns
     -------
-    gradients : list of FEM Functions — one per Vol time slice, each of length n_dof
-    m_at_t0   : FEM Function — adjoint state at t = t_0 (for diagnostics)
+    gradients : list of Functions - one per Vol time slice, each of length n_dof
+    m_at_t0   : Function - adjoint state at t = t_0 (for diagnostics)
     """
-    m = fem.Function(V)
-    m.x.array[:] = residual.x.array[:]   # m(T) = A_f(a) − g
+    m = Function(V)
+    set_array(m, get_array(residual))     # m(T) = A_f(a) - g
 
-    gradients = [fem.Function(V) for _ in a_vol.a]
-    for g in gradients:
-        g.x.array[:] = 0.0
+    gradients = [Function(V) for _ in a_vol.a]   # zero-initialised
 
-    zero = fem.Constant(V.mesh, 0.0)
-    bcs  = create_bcs(V, y_0, y_1, zero, zero)
+    bcs = create_bcs(V, y_0, y_1, 0.0, 0.0)
 
     for t in range(M_time - 1, -1, -1):
         current_time = t_0 + (t + 1) * dt
         a   = a_vol.get(current_time)
-        u_t = trajectory[t]
+        u_t = trajectory[t + 1]      # implicit-Euler new-time state u^n
 
         m_prev, g_inc = _step(m, u_t, a, dt, V, r, q, bcs)
 
-        gradients[a_vol.get_idx(current_time)].x.array[:] += g_inc.x.array[:]
-        m.x.array[:] = m_prev.x.array[:]
+        idx = a_vol.get_idx(current_time)
+        set_array(gradients[idx], get_array(gradients[idx]) + get_array(g_inc))
+        set_array(m, get_array(m_prev))
 
     return gradients, m
 
 
 def _step(m_curr, u_t, a_func, dt, V, r_rate, q_rate, bcs):
-    """
+    r"""
     One backward-Euler step of the adjoint equation, plus the gradient contribution.
 
-    Adjoint PDE (in reverse time τ' = T − τ):
+    Adjoint PDE (in reverse time \tau' = T - \tau):
 
-        m_{τ'} = −(am)_yy − (am)_y − (r−q) m_y + qm
+        m_{\tau'} = -(am)_yy - (am)_y - (r-q) m_y + qm
 
     Backward-Euler weak form (m unknown, m_curr = previous adjoint state):
 
-        ∫(m − m_curr) v dy
-        + dt [ ∫ (am)_y v_y dy
-             + ∫ a m v_y dy
-             + ∫ (r−q) m v_y dy
-             + ∫ q m v dy ] = 0
+        \int(m - m_curr) v dy
+        + dt [ \int (am)_y v_y dy
+             + \int a m v_y dy
+             + \int (r-q) m v_y dy
+             + \int q m v dy ] = 0
 
     Gradient contribution assembled as a linear 1-form:
 
-        g_j = −dt ∫ [ u_y m_y φ_j   (from B1: ∫ a u_y v_y)
-                    + u_y m ∂_y φ_j  (from B2: ∫ ∂_y a · u_y v)
-                    + u_y m φ_j ]    (from B3: ∫ (a+r−q) u_y v)   dy
+        g_j = -dt \int [ u_y m_y \phi_j   (from B1: \int a u_y v_y)
+                    + u_y m \partial_y \phi_j  (from B2: \int \partial_y a \cdot u_y v)
+                    + u_y m \phi_j ]    (from B3: \int (a+r-q) u_y v)   dy
     """
-    m = ufl.TrialFunction(V)
-    v = ufl.TestFunction(V)
+    m = TrialFunction(V)
+    v = TestFunction(V)
 
-    dt_c = fem.Constant(V.mesh, ScalarType(dt))
-    r_c  = fem.Constant(V.mesh, ScalarType(r_rate))
-    q_c  = fem.Constant(V.mesh, ScalarType(q_rate))
+    dt_c = Constant(dt)
+    r_c  = Constant(r_rate)
+    q_c  = Constant(q_rate)
 
     adj_form = (
-        (m - m_curr) * v * ufl.dx
+        (m - m_curr) * v * dx
         + dt_c * (
-            a_func * ufl.dot(ufl.grad(m), ufl.grad(v)) * ufl.dx     # ∫ a m_y v_y  ─┐ together:
-            + m * ufl.dot(ufl.grad(a_func), ufl.grad(v)) * ufl.dx   # ∫ ∂_y a m v_y ─┘ ∫(am)_y v_y
-            + (a_func + r_c - q_c) * m * v.dx(0) * ufl.dx           # ∫ (a+r−q) m v_y
-            + q_c * m * v * ufl.dx                                   # ∫ q m v
+            a_func * dot(grad(m), grad(v)) * dx     # \int a m_y v_y        ] together these
+            + m * dot(grad(a_func), grad(v)) * dx   # \int \partial_y a m v_y  ] give \int (am)_y v_y
+            + (a_func + r_c - q_c) * m * v.dx(0) * dx   # \int (a+r-q) m v_y
+            + q_c * m * v * dx                          # \int q m v
         )
     )
 
-    m_new = LinearProblem(
-        ufl.lhs(adj_form), ufl.rhs(adj_form), bcs=bcs,
-        petsc_options_prefix="adj",
-        petsc_options={"ksp_type": "preonly", "pc_type": "lu"},
-    ).solve()
+    m_new = Function(V)
+    solve(lhs(adj_form) == rhs(adj_form), m_new, bcs,
+          solver_parameters={"linear_solver": "lu"})
 
-    # Gradient ∂J/∂a_j assembled directly as a 1-form — no mass-matrix solve needed.
+    # Gradient \partial J / \partial a_j assembled directly as a 1-form - no mass-matrix solve needed.
     # Captures all three terms from differentiating the forward bilinear form w.r.t. a_j.
-    h_test = ufl.TestFunction(V)
-    grad_form = fem.form(
+    h_test = TestFunction(V)
+    grad_form = (
         -dt_c * (
-            ufl.dot(ufl.grad(u_t), ufl.grad(m_new)) * h_test    # B1: ∫ u_y m_y φ_j
-            + u_t.dx(0) * m_new * h_test.dx(0)                  # B2: ∫ u_y m ∂_y φ_j
-            + u_t.dx(0) * m_new * h_test                        # B3: ∫ u_y m φ_j
-        ) * ufl.dx
+            dot(grad(u_t), grad(m_new)) * h_test    # B1: \int u_y m_y \phi_j
+            + u_t.dx(0) * m_new * h_test.dx(0)      # B2: \int u_y m \partial_y \phi_j
+            + u_t.dx(0) * m_new * h_test            # B3: \int u_y m \phi_j
+        ) * dx
     )
-    b = assemble_vector(grad_form)
-    b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-
-    g_func = fem.Function(V)
-    g_func.x.array[:] = b.array_r
+    g_func = Function(V)
+    set_array(g_func, assemble(grad_form).get_local())
 
     return m_new, g_func
