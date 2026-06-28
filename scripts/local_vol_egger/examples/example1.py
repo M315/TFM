@@ -1,41 +1,36 @@
 """
 Example 1 — Egger & Engl (2005), section 5.4.
 
-Recover a constant local volatility from exact call-price observations.
+Recover a constant local volatility a† = 0.15 (σ† = √(2·0.15) ≈ 0.548) from
+European call prices, reproducing the paper's five test runs:
 
-Setup
------
-True parameter   : a† = 0.15  (constant) ↔ σ† = √(2·0.15) ≈ 0.548
-Domain           : y ∈ [−3, 3],  τ ∈ [0, 1]
-Rates            : r = q = 0
-Regularisation   : β = 1e-6
-Data             : exact (no noise) — case A of the paper
+    A   complete, exact data,            prior a*₁ = 0.15 − 0.05·erf(−y²)
+    B   incomplete (20 strikes), exact,  prior a*₁
+    C   complete, exact data,            BAD prior a* = 0.1   (constant)
+    D   complete, 0.1% noisy data,       prior a*₁
+    BD  incomplete (20 strikes), noisy,  prior a*₁
 
-Initial guess and prior (case A)
----------------------------------
-    a*_1(y) = 0.15 − 0.05·erf(−y²)
+run() executes all five cases in series, prints a per-strike table for each,
+saves a recovery figure per case, and writes the collected results to two CSV
+files (option values and reconstructed parameter a) that reproduce the paper's
+Tables 1–2.
 
-At y = 0 this equals the true value 0.15.  For large |y|, erf(−y²) → −1 so
-a*_1 → 0.20.  The paper uses this to demonstrate that the method recovers well
-in the informationally rich region (near ATM) and stays close to the prior
-elsewhere — a manifestation of the inherent ill-posedness.
+Common setup
+------------
+Domain   : y ∈ [−3, 3] (M = 3),  τ ∈ [0, 1]
+Rates    : r = q = 0
+Spot     : S₀ = 1000  (the paper's text "100" is a typo — see the note below)
 
-Spot price
-----------
-The paper's text says S = 100, but the reported option values (Tables 1–2,
-strikes 600–1800 with a call worth 439 at K=600) and test (D) ("underlying
-worth 1000$") only make sense with S₀ = 1000 — the text value is a typo.
-
-S₀ matters here even though the PDE is linear in u: the recovered a(y) is
-scale-invariant, but the Tikhonov functional is not.  The data term
-‖u(a) − u^δ‖²_{L²} scales as S₀² while β‖a − a*‖²_{H¹} does not, so the
-data/regularisation balance — and hence the effective strength of β — depends
-on S₀.  Reproducing the paper's β = 1e-6 result therefore requires its S₀.
-
-The initial condition is u(y, 0) = S₀·(1 − e^y)⁺ and the Dirichlet BCs are the
-exact Black–Scholes call price evaluated at the boundary strikes K = S₀·e^{±M}
-(this is the BC recipe the paper uses in its test example, §5.2).
+S₀ note
+-------
+The paper's text says S = 100, but its tabulated option values (a call worth
+439 at K=600) and test (D) ("underlying worth 1000$") only make sense with
+S₀ = 1000.  S₀ matters even though the PDE is linear in u: the recovered a(y) is
+scale-invariant, but the Tikhonov balance is not — the data term scales as S₀²
+while β‖a − a*‖²_{H¹} does not — so reproducing the paper's β needs its S₀.
 """
+
+import csv
 
 from mpi4py import MPI
 
@@ -51,41 +46,62 @@ from utils                   import L2_norm, bs_call
 
 
 # ---------------------------------------------------------------------------
-# Experiment parameters
+# All five paper test runs — executed in series by run()
+# ---------------------------------------------------------------------------
+ALL_CASES = ["A", "B", "C", "D", "BD"]
+STRIKES   = np.arange(600, 1801, 100)   # paper's tabulated strikes (Tables 1–2)
+
+
+# ---------------------------------------------------------------------------
+# Common experiment parameters
 # ---------------------------------------------------------------------------
 
-Y0, Y1     = -3.0, 3.0   # log-moneyness domain  (M = 3)
+Y0, Y1     = -3.0, 3.0    # log-moneyness domain  (M = 3)
 T_END      = 1.0          # maturity T
-R, Q       = 0.0, 0.0    # zero interest / dividend rate
-S0         = 1000.0       # spot price (paper's text says 100, but its numerics use 1000)
-BETA       = 1e-6         # Tikhonov β (exact data → small β; calibrated for this S0)
+R, Q       = 0.0, 0.0     # zero interest / dividend rate
+S0         = 1000.0       # spot price (see the S₀ note above)
 N_SPACE    = 199          # spatial elements
 M_TIME     = 200          # implicit-Euler time steps
-MESH_BETA  = 2.0          # sinh node-clustering toward ATM (y=0): 0 = uniform,
-                          # larger = denser near the money (the data-rich region)
+MESH_BETA  = 0.0          # sinh node-clustering toward ATM (y=0); 0 = uniform
 
 A_TRUE     = 0.15
 SIGMA_TRUE = np.sqrt(2.0 * A_TRUE)   # ≈ 0.5477
 
-# Prior / initial guess for a*:
-#   "erf"  — paper's case A: a*_1(y) = 0.15 − 0.05·erf(−y²)  (→ 0.20 at edges,
-#            so the edges revert to 0.20 where data is uninformative)
-#   "flat" — a* = 0.15 everywhere: with no edge bias the method recovers the
-#            flat true surface across the whole domain (natural dummy-target check)
-PRIOR = "erf"
+# Incomplete-data cases (B, BD): 20 observed strikes, spread over a liquid band
+# in log-moneyness; each is snapped to the nearest mesh node to build the mask.
+N_OBS         = 20
+OBS_Y_RANGE   = (-1.0, 1.0)          # K ≈ 368 … 2718 for S₀ = 1000
+
+# Noisy cases (D, BD): the paper adds "0.1% uniformly distributed noise to the
+# data" and notes that for S₀ = 1000$ this is "an uncertainty of ±1$ ... about
+# the size of typical bid-ask spreads" (Egger & Engl 2005, §5, test D).  The
+# wording is ambiguous — ±1$ is both 0.1%·S₀ AND ~0.1% of the priciest call (a
+# call's value is bounded by S₀) — but empirically a flat absolute ±1$ band on
+# every node destroys the near-zero OTM tail (negative prices, huge relative
+# error) and yields very noisy reconstructions, whereas the paper's tables are
+# stable.  We therefore use *relative* noise: ±0.1% of each option's own price,
+# u^δ_i = u_i·(1 + U(−ε, ε)), which leaves the cheap tail intact and reproduces
+# their stability.  (See memory note egger_noise_model for the full rationale.)
+NOISE_REL     = 0.001                # ±0.1% of each option's own price
+NOISE_SEED    = 0
+
+# Regularisation: small fixed β for exact data; β ~ 1e-2·δ for noisy data
+# (the value at which the paper meets the discrepancy principle, §5.3).
+BETA_EXACT    = 1e-6
+BETA_NOISE_K  = 1e-2                  # β = BETA_NOISE_K · δ
+
+
+def _is_incomplete(case):
+    return case in ("B", "BD")
+
+
+def _is_noisy(case):
+    return case in ("D", "BD")
 
 
 # ---------------------------------------------------------------------------
-# Boundary conditions
+# Boundary conditions  (paper recipe, §5.2)
 # ---------------------------------------------------------------------------
-
-# Paper's recipe (§5.2): take the boundary data z0 = u(−M,T), z1 = u(M,T),
-# invert Black–Scholes for their implied vols, then BS-price those vols over
-# τ ∈ [0, T] to get g0(τ), g1(τ).  For the synthetic case-A data, z0 and z1 are
-# *exactly* the BS prices at the true σ, so their implied vols are σ† and the
-# recipe reduces to BS-pricing at SIGMA_TRUE — which is what we do below.
-# (Literally inverting z0/z1 would be ill-conditioned here anyway: at |y| = 3
-# the price is ~intrinsic / ~0, where it carries almost no vol information.)
 
 def _bc_left(tau):
     """Exact BS call price at the deep-ITM boundary y = Y0 (strike K = S0·e^{Y0})."""
@@ -105,16 +121,35 @@ def _bc_right(tau):
 # Problem setup
 # ---------------------------------------------------------------------------
 
-def setup(V):
+def _prior_func(case):
+    """Initial guess / regularisation centre a*(y) for the given case."""
+    if case == "C":
+        return lambda y: np.full_like(y, 0.10)        # bad constant prior
+    return lambda y: 0.10 - 0.05 * erf(-y ** 2)        # a*₁ (cases A, B, D, BD)
+
+
+def _build_obs_mask(V):
+    """{0,1} DOF mask selecting the N_OBS observed strikes (cases B, BD)."""
+    y = V.tabulate_dof_coordinates()[:, 0]
+    targets = np.linspace(OBS_Y_RANGE[0], OBS_Y_RANGE[1], N_OBS)
+    obs_nodes = np.unique([int(np.argmin(np.abs(y - yt))) for yt in targets])
+    mask = np.zeros_like(y)
+    mask[obs_nodes] = 1.0
+    return mask
+
+
+def setup(V, case):
     """
-    Build all ingredients for Example 1, case A.
+    Build the ingredients for the requested case.
 
     Returns
     -------
-    u_0         : FEM Function — initial condition u(y, 0) = S0·(1 − e^y)^+
-    u_obs       : FEM Function — exact call prices at τ = T (generated with true a†)
-    a_init      : Vol — initial parameter guess a*_1(y)
-    a_prior_vec : np.ndarray — DOF vector of a* = a*_1 (regularisation centre)
+    u_0         : FEM Function — initial condition u(y,0) = S0·(1 − e^y)^+
+    u_obs       : FEM Function — observed prices at τ = T (noisy for D/BD)
+    a_init      : Vol — initial parameter guess a*
+    a_prior_vec : np.ndarray — DOF vector of a*
+    obs_mask    : np.ndarray or None — observed-strike mask (B/BD) or None
+    beta        : float — regularisation parameter
     """
     # Initial condition: call payoff scaled by the spot price
     u_0 = fem.Function(V)
@@ -126,38 +161,48 @@ def setup(V):
     a_true = Vol(V, a_true_fn, 0.0, T_END, N=1)
 
     dt = T_END / M_TIME
-    u_obs, _ = compute_Af(a_true, u_0, dt, M_TIME, V, R, Q, Y0, Y1, 0.0,
-                          _bc_left, _bc_right)
+    u_clean, _ = compute_Af(a_true, u_0, dt, M_TIME, V, R, Q, Y0, Y1, 0.0,
+                            _bc_left, _bc_right)
 
-    # Initial guess / prior — see the PRIOR flag above
+    obs_mask = _build_obs_mask(V) if _is_incomplete(case) else None
+
+    # Observation = exact prices, optionally corrupted by 0.1% relative noise
+    u_obs = fem.Function(V)
+    u_obs.x.array[:] = u_clean.x.array[:]
+    beta = BETA_EXACT
+    if _is_noisy(case):
+        rng = np.random.default_rng(NOISE_SEED)
+        # ±0.1% of each option's own price → cheap OTM calls are not swamped.
+        noise = rng.uniform(-NOISE_REL, NOISE_REL, size=u_obs.x.array.shape) \
+                * u_clean.x.array
+        u_obs.x.array[:] += noise
+
+        # Noise level δ in the data-term norm (masked for incomplete data),
+        # used to set β ~ 1e-2·δ.
+        noise_fn = fem.Function(V)
+        noise_fn.x.array[:] = noise
+        if obs_mask is not None:
+            noise_fn.x.array[:] *= obs_mask
+        delta = L2_norm(noise_fn)
+        beta  = BETA_NOISE_K * delta
+        print(f"[case {case}] noise level δ = {delta:.4e}  →  β = {beta:.4e}")
+
+    # Initial guess / prior
+    prior = _prior_func(case)
     a_init_fn = fem.Function(V)
-    if PRIOR == "flat":
-        a_init_fn.interpolate(lambda x: np.full_like(x[0], A_TRUE))
-    else:  # "erf" — paper's case A
-        a_init_fn.interpolate(lambda x: 0.15 - 0.05 * erf(-x[0] ** 2))
+    a_init_fn.interpolate(lambda x: prior(x[0]))
     a_init = Vol(V, a_init_fn, 0.0, T_END, N=1)
+    a_prior_vec = a_init_fn.x.array.copy()
 
-    a_prior_vec = a_init_fn.x.array.copy()   # a* = same as initial guess
-
-    return u_0, u_obs, a_init, a_prior_vec
+    return u_0, u_obs, a_init, a_prior_vec, obs_mask, beta
 
 
 # ---------------------------------------------------------------------------
-# Entry point
+# Mesh
 # ---------------------------------------------------------------------------
 
 def _make_mesh():
-    """
-    Interval mesh on [Y0, Y1] with optional sinh clustering toward ATM (y=0).
-
-    The data-informative region is near the money (small |y|); clustering nodes
-    there resolves the recovered vol more finely without wasting resolution on
-    the deep ITM/OTM tails (where the prices — and hence the recoverable vol —
-    carry little information).  The domain endpoints stay at ±M, so the
-    asymptotic boundary conditions remain valid.
-
-        y(ξ) = (Y1-Y0)/2 · sinh(β(ξ-½)) / sinh(β/2),   ξ ∈ [0,1] uniform.
-    """
+    """Interval mesh on [Y0, Y1] with sinh node-clustering toward ATM (y=0)."""
     msh = dolfinx_mesh.create_interval(MPI.COMM_WORLD, N_SPACE, points=(Y0, Y1))
     if MESH_BETA > 0:
         xi  = (msh.geometry.x[:, 0] - Y0) / (Y1 - Y0)
@@ -168,72 +213,133 @@ def _make_mesh():
     return msh
 
 
-def run():
-    msh = _make_mesh()
-    V   = fem.functionspace(msh, ("Lagrange", 1))
-
-    u_0, u_obs, a_init, a_prior_vec = setup(V)
-
-    a_cal, _ = run_tikhonov(
-        u_0, u_obs, a_init, a_prior_vec, BETA,
-        V, R, Q, Y0, Y1, 0.0, T_END, M_TIME, _bc_left, _bc_right,
-        max_iter=300, ftol=1e-12, gtol=1e-10,
-    )
-
-    _print_table(a_cal, u_0, V)
-    _plot(a_cal, a_prior_vec, u_0, u_obs, V)
-    _plot_surface(a_cal, u_0, V)
-
-
 # ---------------------------------------------------------------------------
-# Tables 1 & 2 (Egger & Engl 2005, case A)
+# Entry point
 # ---------------------------------------------------------------------------
 
-def _print_table(a_cal, u_0, V):
+def _forward(a_vol, u_0, V):
+    """Forward-solve to the option prices u(·,T) for a given parameter field."""
+    dt = T_END / M_TIME
+    u_pred, _ = compute_Af(a_vol, u_0, dt, M_TIME, V, R, Q, Y0, Y1, 0.0,
+                           _bc_left, _bc_right)
+    return u_pred
+
+
+def _eval_at_strikes(a_field, u_pred, V):
     """
-    Reproduce Tables 1 & 2 of the paper for case A at T = 1 y.
+    Interpolate (C_recon, a_recon, σ_recon) at the tabulated strikes.
 
-    Since r = q = 0 and u(y,0) = S0·(1−e^y)^+ = (S0−K)^+, the PDE solution u(y,T)
-    is exactly the call price C(K, T).  So:
-      - reconstructed option value  = u(a_cal)(y, T)            (Table 1, col A)
-      - true option value           = analytic BS call at σ†    (Table 1, "True value")
-      - reconstructed parameter a   = a_cal interpolated at y    (Table 2, col A)
-        with σ = √(2a).
+    Since r = q = 0 and u(y,0) = (S0−K)^+, u(y,T) is exactly the call price C(K,T).
+    Returns a list of (K, y, C_recon, a_recon, σ_recon), one per strike.
     """
     y_coords = V.mesh.geometry.x[:, 0]
     idx = np.argsort(y_coords)
     y_s = y_coords[idx]
-    a_s = a_cal.a[0].x.array.real[idx]
-
-    dt = T_END / M_TIME
-    u_pred, _ = compute_Af(a_cal, u_0, dt, M_TIME, V, R, Q, Y0, Y1, 0.0,
-                           _bc_left, _bc_right)
+    a_s = a_field.x.array.real[idx]
     u_s = u_pred.x.array.real[idx]
 
-    strikes = np.arange(600, 1801, 100)
+    rows = []
+    for K in STRIKES:
+        y     = float(np.log(K / S0))
+        C_rec = float(np.interp(y, y_s, u_s))
+        a_rec = float(np.interp(y, y_s, a_s))
+        rows.append((int(K), y, C_rec, a_rec, float(np.sqrt(2.0 * max(a_rec, 0.0)))))
+    return rows
 
+
+def _solve(V, case):
+    """Calibrate one case; return the calibrated field and its setup ingredients."""
+    print("\n" + "#" * 74)
+    print(f"#  Calibrating case {case}")
+    print("#" * 74)
+    u_0, u_obs, a_init, a_prior_vec, obs_mask, beta = setup(V, case)
+    a_cal, _ = run_tikhonov(
+        u_0, u_obs, a_init, a_prior_vec, beta,
+        V, R, Q, Y0, Y1, 0.0, T_END, M_TIME, _bc_left, _bc_right,
+        max_iter=300, ftol=1e-12, gtol=1e-10, obs_mask=obs_mask,
+    )
+    return a_cal, u_0, u_obs, a_prior_vec, obs_mask
+
+
+def run():
+    """Run all five cases in series and write the CSVs reproducing Tables 1–2."""
+    msh = _make_mesh()
+    V   = fem.functionspace(msh, ("Lagrange", 1))
+
+    # Case-independent reference columns of Table 1:
+    #   C_true    — analytic Black–Scholes price at the true σ†
+    #   C_optimal — numerical price from a forward solve with the true a† on the grid
+    u_0 = fem.Function(V)
+    u_0.interpolate(lambda x: S0 * np.maximum(1.0 - np.exp(x[0]), 0.0))
+    a_true_fn = fem.Function(V)
+    a_true_fn.interpolate(lambda x: np.full_like(x[0], A_TRUE))
+    opt_rows  = _eval_at_strikes(a_true_fn,
+                                 _forward(Vol(V, a_true_fn, 0.0, T_END, 1), u_0, V), V)
+    C_optimal = {K: C for (K, _, C, _, _) in opt_rows}
+    C_true    = {int(K): float(bs_call(S0, np.log(K / S0), R, Q, SIGMA_TRUE, T_END))
+                 for K in STRIKES}
+
+    # Calibrate every case and collect its per-strike table.
+    results = {}
+    for case in ALL_CASES:
+        a_cal, u_0c, u_obs, a_prior_vec, obs_mask = _solve(V, case)
+        rows = _eval_at_strikes(a_cal.a[0], _forward(a_cal, u_0c, V), V)
+        results[case] = rows
+        _print_table(case, rows, C_true)
+        _plot(a_cal, a_prior_vec, u_0c, u_obs, V, case, obs_mask)
+
+    _save_results(C_true, C_optimal, results)
+
+
+# ---------------------------------------------------------------------------
+# Tables 1 & 2 (Egger & Engl 2005) — console + CSV
+# ---------------------------------------------------------------------------
+
+def _print_table(case, rows, C_true):
+    """Print the reconstructed option value / volatility for one case."""
     print("\n" + "=" * 74)
-    print(f"  Example 1, case A — strikes {strikes[0]}…{strikes[-1]}, S0={S0:.0f}, T=1y")
+    print(f"  Example 1, case {case} — strikes {STRIKES[0]}…{STRIKES[-1]}, S0={S0:.0f}, T=1y")
     print("=" * 74)
     print(f"{'Strike':>7} | {'y':>7} | {'C_true':>9} {'C_recon':>9} {'ΔC':>8}"
           f" | {'a_true':>7} {'a_recon':>8} {'σ_recon':>8}")
     print("-" * 74)
-    for K in strikes:
-        y      = float(np.log(K / S0))
-        C_true = float(bs_call(S0, y, R, Q, SIGMA_TRUE, T_END))
-        C_rec  = float(np.interp(y, y_s, u_s))
-        a_rec  = float(np.interp(y, y_s, a_s))
-        sigma  = float(np.sqrt(2.0 * max(a_rec, 0.0)))
-        print(f"{K:>7} | {y:>7.3f} | {C_true:>9.2f} {C_rec:>9.2f} {C_rec - C_true:>8.3f}"
+    for (K, y, C_rec, a_rec, sigma) in rows:
+        print(f"{K:>7} | {y:>7.3f} | {C_true[K]:>9.2f} {C_rec:>9.2f} {C_rec - C_true[K]:>8.3f}"
               f" | {A_TRUE:>7.4f} {a_rec:>8.4f} {sigma:>8.4f}")
     print("=" * 74)
 
 
+def _save_results(C_true, C_optimal, results):
+    """
+    Write the collected results to two CSVs reproducing the paper's tables:
+      egger_example1_option_values.csv  — Table 1 (option prices per case)
+      egger_example1_parameter_a.csv    — Table 2 (reconstructed a = ½σ² per case)
+    """
+    f_val = "egger_example1_option_values.csv"
+    with open(f_val, "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["Strike", "C_true", "C_optimal"] + [f"C_{c}" for c in ALL_CASES])
+        for i, K in enumerate(STRIKES):
+            K = int(K)
+            w.writerow([K, f"{C_true[K]:.2f}", f"{C_optimal[K]:.2f}"]
+                       + [f"{results[c][i][2]:.2f}" for c in ALL_CASES])
+
+    f_par = "egger_example1_parameter_a.csv"
+    with open(f_par, "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["Strike", "a_true"] + [f"a_{c}" for c in ALL_CASES])
+        for i, K in enumerate(STRIKES):
+            w.writerow([int(K), f"{A_TRUE:.4f}"]
+                       + [f"{results[c][i][3]:.4f}" for c in ALL_CASES])
+
+    print(f"\nSaved {f_val} and {f_par}")
+
+
 # ---------------------------------------------------------------------------
-# Plotting
+# Plot — recovered 1-year slice + reprice residual
 # ---------------------------------------------------------------------------
 
-def _plot(a_cal, a_prior_vec, u_0, u_obs, V):
+def _plot(a_cal, a_prior_vec, u_0, u_obs, V, case, obs_mask):
     y_coords = V.mesh.geometry.x[:, 0]
     idx      = np.argsort(y_coords)
     y        = y_coords[idx]
@@ -245,17 +351,18 @@ def _plot(a_cal, a_prior_vec, u_0, u_obs, V):
 
     # Left: parameter recovery
     ax = axes[0]
-    # Shade the strike range the paper actually tabulates (K = 600..1800):
-    #   y = ln(600/1000) ≈ −0.51 … ln(1800/1000) ≈ 0.59
     ax.axvspan(np.log(600 / S0), np.log(1800 / S0), color='gold', alpha=0.15,
                label="Paper's tabulated strikes")
     ax.axhline(A_TRUE,  color='r',    ls='--', lw=1.5, label=r'True $a^\dagger = 0.15$')
-    ax.plot(y, a_prior, color='grey', ls=':',  lw=1.5, label=r'Initial guess $a^*_1(y)$')
+    ax.plot(y, a_prior, color='grey', ls=':',  lw=1.5, label=r'Initial guess $a^*$')
     ax.plot(y, a_rec,   color='b',    ls='-',  lw=1.5, label=r'Recovered $a(y)$')
+    if obs_mask is not None:
+        on = obs_mask[idx] > 0.5
+        ax.plot(y[on], a_rec[on], 'k.', ms=8, label='Observed strikes')
     ax.set_xlabel('Log-moneyness $y$')
     ax.set_ylabel(r'$a(y) = \frac{1}{2}\sigma^2$')
-    ax.set_title('Parameter recovery — Example 1 (case A)')
-    ax.legend()
+    ax.set_title(f'Parameter recovery — Example 1 (case {case})')
+    ax.legend(fontsize=9)
     ax.grid(True, alpha=0.4)
 
     # Right: reprice residual at τ = T
@@ -276,58 +383,10 @@ def _plot(a_cal, a_prior_vec, u_0, u_obs, V):
     ax.grid(True, alpha=0.4)
 
     plt.tight_layout()
-    out = 'egger_example1_caseA.png'
+    out = f'egger_example1_case{case}.png'
     plt.savefig(out, dpi=150)
     print(f"Saved {out}")
-    plt.show()
-
-
-def _plot_surface(a_cal, u_0, V):
-    """
-    3D surfaces over the full (y, τ) grid:
-      left  — recovered local-vol surface σ(y,τ) = √(2 a(y,τ))
-      right — option-price solution u(y,τ) from the forward solve
-
-    In Example 1 the parameter a is time-independent (one Vol slice), so the
-    σ-surface is a flat extrusion in τ — the left panel confirms that.  The
-    right panel shows the genuine time evolution of the price surface, from the
-    payoff u(y,0) = S0·(1−e^y)^+ at τ=0 up to the observed prices at τ=T.
-    """
-    y_coords = V.mesh.geometry.x[:, 0]
-    idx = np.argsort(y_coords)
-    y   = y_coords[idx]
-
-    dt = T_END / M_TIME
-    _, traj = compute_Af(a_cal, u_0, dt, M_TIME, V, R, Q, Y0, Y1, 0.0,
-                         _bc_left, _bc_right)
-    taus = np.linspace(0.0, T_END, M_TIME + 1)
-
-    U   = np.array([snap.x.array.real[idx] for snap in traj])                 # price surface
-    SIG = np.array([np.sqrt(2.0 * a_cal.get(t).x.array.real[idx]) for t in taus])  # vol surface
-
-    Yg, Tg = np.meshgrid(y, taus)
-
-    fig = plt.figure(figsize=(14, 6))
-
-    ax1 = fig.add_subplot(1, 2, 1, projection='3d')
-    ax1.plot_surface(Yg, Tg, SIG, cmap='viridis', edgecolor='none')
-    ax1.set_xlabel('Log-moneyness $y$')
-    ax1.set_ylabel(r'Maturity $\tau$')
-    ax1.set_zlabel(r'$\sigma_{\mathrm{loc}}(y,\tau)$')
-    ax1.set_title(r'Recovered local-vol surface  $\sigma = \sqrt{2a}$')
-
-    ax2 = fig.add_subplot(1, 2, 2, projection='3d')
-    ax2.plot_surface(Yg, Tg, U, cmap='plasma', edgecolor='none')
-    ax2.set_xlabel('Log-moneyness $y$')
-    ax2.set_ylabel(r'Maturity $\tau$')
-    ax2.set_zlabel(r'$u(y,\tau)$')
-    ax2.set_title('Option-price solution surface')
-
-    plt.tight_layout()
-    out = 'egger_example1_caseA_surface.png'
-    plt.savefig(out, dpi=150)
-    print(f"Saved {out}")
-    plt.show()
+    plt.close(fig)
 
 
 if __name__ == "__main__":

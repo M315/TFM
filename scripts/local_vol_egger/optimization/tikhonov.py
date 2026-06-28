@@ -22,7 +22,8 @@ from utils        import L2_norm, H1_norm_sq, h1_reg_gradient
 
 
 def cost_and_grad(a_vec, a_vol, u_0, u_obs, a_prior_vec, beta,
-                  V, r, q, y_0, y_1, t_0, t_1, M_time, psi_1, psi_2):
+                  V, r, q, y_0, y_1, t_0, t_1, M_time, psi_1, psi_2,
+                  obs_mask=None):
     """
     Evaluate J^β(a) and its Euclidean (DOF-level) gradient.
 
@@ -34,6 +35,11 @@ def cost_and_grad(a_vec, a_vol, u_0, u_obs, a_prior_vec, beta,
     u_obs      : FEM Function — observed prices u^δ(y,T)
     a_prior_vec: np.ndarray — DOF vector of the a priori guess a*
     beta       : float — regularisation parameter β
+    obs_mask   : np.ndarray or None — {0,1} DOF mask selecting the observed
+                 strikes.  None → complete data (all nodes observed).  When set,
+                 the residual is zeroed outside the observed nodes, so the data
+                 term becomes the (quadrature-weighted) misfit over those strikes
+                 only — the "incomplete data" setting of cases B / BD.
 
     Returns
     -------
@@ -47,6 +53,12 @@ def cost_and_grad(a_vec, a_vol, u_0, u_obs, a_prior_vec, beta,
 
     residual = fem.Function(V)
     residual.x.array[:] = u_pred.x.array - u_obs.x.array
+    if obs_mask is not None:
+        # Restrict the misfit to the observed strikes.  Masking the residual is
+        # consistent for both the cost and the adjoint gradient: the projection
+        # P is idempotent, so ∂_a ½‖P(u−u^δ)‖² = ∫ P(u−u^δ)·w(T), i.e. the adjoint
+        # terminal condition is simply the masked residual.
+        residual.x.array[:] *= obs_mask
 
     # Data-fidelity term: ‖u(a) − u^δ‖²_{L²}
     cost_data = L2_norm(residual) ** 2
@@ -71,7 +83,7 @@ def cost_and_grad(a_vec, a_vol, u_0, u_obs, a_prior_vec, beta,
 
 def run(u_0, u_obs, a_init, a_prior_vec, beta,
         V, r, q, y_0, y_1, t_0, t_1, M_time, psi_1, psi_2,
-        max_iter=200, ftol=1e-10, gtol=1e-8):
+        max_iter=200, ftol=1e-10, gtol=1e-8, obs_mask=None):
     """
     Minimise J^β via L-BFGS-B.
 
@@ -93,7 +105,7 @@ def run(u_0, u_obs, a_init, a_prior_vec, beta,
     n = len(a_vec_init)
 
     args = (a_init, u_0, u_obs, a_prior_vec, beta,
-            V, r, q, y_0, y_1, t_0, t_1, M_time, psi_1, psi_2)
+            V, r, q, y_0, y_1, t_0, t_1, M_time, psi_1, psi_2, obs_mask)
 
     print(f"Tikhonov  β={beta:.1e}  N_params={n}")
 
