@@ -336,6 +336,16 @@ and define the set of admissible parameters
 \begin{equation}\label{eq:admissible_set}
     \mathcal{K}(a^*) = \bigl\{ a \in a^* + H^1(Q) : \underline{a} \le a \le \bar{a} \bigr\}.
 \end{equation}
+Here $Q = \Omega \times (0,T)$ is the space-time domain and $a^* + H^1(Q)$ is taken with
+$\nabla a^* \in [L^2(Q)]^2$ (Definition~2.1 of~\cite{egger2005tikhonov}). Two features of
+$H^1$ matter. The coefficient enters the equation through the flux term of the divergence
+form~\eqref{eq:variational_forward_eq}, so it must have a weak derivative in $L^2$. And the
+$H^1$ penalty makes the sublevel sets of the Tikhonov functional bounded in $H^1$, hence
+weakly compact, which is what yields a minimizer. In the numerical setting below the
+volatility is time independent, $a = a(y)$, and the penalty reduces to the spatial norm
+$\int_{-M}^{M} (a^2 + a_y^2)\,dy$; on the bounded interval $H^1$ then also embeds into
+$C[-M,M]$, so the bounds $\underline{a} \le a \le \bar{a}$ hold pointwise.
+
 The \emph{parameter-to-solution map} $F = F_{a_0}$ is defined as
 \begin{equation}\label{eq:param_solution_map}
     F(a) = u(a) - u(a_0),
@@ -349,9 +359,14 @@ There exists $p^* > 2$ such that $F\colon \mathcal{K}(a^*) \to W_p^{2,1}(Q)$
 is continuous and compact for $2 \le p < p^*$, and weakly sequentially continuous.
 \end{theorem}
 
-The compactness of $F$ is the mathematical source of ill-posedness:
-similar option prices can correspond to completely different volatility surfaces,
-so the inversion of $F$ is unstable.
+The compactness of $F$ is the mathematical source of the ill-posedness. It reflects the
+smoothing action of the pricing equation: the solution of a parabolic problem is more regular
+than its coefficient, and the solution space $W_p^{2,1}(Q)$ embeds compactly in the
+observation space. A compact operator between infinite dimensional spaces cannot have a
+continuous inverse, so arbitrarily small changes in the observed prices can correspond to
+order one changes in $a$. In practice very different volatility profiles reproduce almost the
+same option prices, especially away from the money, and any direct inversion amplifies the
+noise. Controlling this instability is the purpose of the Tikhonov penalty.
 
 \subsubsection{Tikhonov functional}
 
@@ -373,12 +388,26 @@ The $H^1$ norm in the penalty is
     \|a - a^*\|^2_{H^1} = \int_{-M}^{M} \bigl[(a-a^*)^2 + (\partial_y(a-a^*))^2\bigr]\,dy.
 \end{equation*}
 
-\begin{proposition}[\cite{egger2005tikhonov}, Proposition 3.1--3.2]
+\begin{proposition}[\cite{egger2005tikhonov}, Propositions 3.1 and 3.2]
 For any $\beta > 0$ a minimizer $a^\delta_\beta$ of $J^\beta$ exists.
 If $\delta \to 0$ and $\beta(\delta) \to 0$ with $\delta^2/\beta(\delta) \to 0$,
 then every sequence of minimizers $\{a^{\delta_k}_{\beta(\delta_k)}\}$
 has a convergent subsequence, and every limit point is an $a^*$-minimum-norm solution.
 \end{proposition}
+
+\begin{proof}[Idea of the proof]
+Both statements are the standard results for Tikhonov regularization of nonlinear ill-posed
+problems~\cite{engl_hanke_neubauer}, which Theorem~2.1 makes applicable here. For existence,
+a minimizing sequence $\{a_n\}$ is bounded in $H^1$ by the penalty term, so it has a weakly
+convergent subsequence $a_n \rightharpoonup \bar{a}$. The constraint set is convex and closed,
+hence weakly closed, so $\bar{a} \in \mathcal{K}(a^*)$. Weak sequential continuity of $F$
+(Theorem~2.1) and weak lower semicontinuity of the $H^1$ norm give
+$J^\beta(\bar{a}) \le \liminf_n J^\beta(a_n)$, so $\bar{a}$ is a minimizer. For the vanishing
+noise limit, the choice $\delta^2/\beta(\delta) \to 0$ keeps the data and penalty terms
+balanced, so the minimizers stay bounded and every weak limit point solves the noise free
+problem with least $H^1$ distance to $a^*$. We refer to~\cite{engl_hanke_neubauer} for the
+general theory and to~\cite{egger2005tikhonov} for its application here.
+\end{proof}
 
 \subsubsection{Gradient computation via the adjoint method}
 
@@ -419,6 +448,59 @@ which avoids a mass-matrix solve and yields the Euclidean gradient directly.
 The second term is the $H^1$ inner product $(a-a^*, h)_{H^1}$,
 whose Euclidean (DOF-level) representation is $(M + K)(a - a^*)$,
 where $M$ and $K$ are the finite-element mass and stiffness matrices.
+
+\subsubsection{Convergence rates and the source condition}
+
+The adjoint solve of the previous section computes the action of $F'(a)^*$ on the residual.
+Writing the data misfit as $\|F(a) - u^\delta\|^2$ and using
+\begin{equation*}
+    \langle \nabla J_d(a),\, h \rangle
+    = 2\bigl(F'(a)h,\; F(a) - u^\delta\bigr)
+    = 2\bigl(h,\; F'(a)^*(F(a) - u^\delta)\bigr),
+\end{equation*}
+the field $V$ of~\eqref{eq:adjoint_pde} represents $F'(a)^*(F(a) - u^\delta)$
+(Remark~4.2 of~\cite{egger2005tikhonov}). The same adjoint controls the speed of convergence.
+
+Convergence alone, as in the proposition above, gives no rate: without a further assumption it
+can be arbitrarily slow. The general theory~\cite{engl_hanke_neubauer} provides a rate under a
+source condition on the true coefficient,
+\begin{equation}\label{eq:source_condition}
+    a^* - a^\dagger = F'(a^\dagger)^*\,w,
+\end{equation}
+read in the $H^1$ inner product, where $F'(a^\dagger)$ is the linearization
+$h \mapsto u'(a^\dagger)[h]$ of~\eqref{eq:gateaux_derivative}. With the differentiability and
+Lipschitz bounds on $F$ established in Proposition~4.1 of~\cite{egger2005tikhonov} and $\|w\|$
+small enough, the choice $\beta \sim \delta$ gives
+\begin{equation}\label{eq:convergence_rate}
+    \|a^\delta_\beta - a^\dagger\| = O(\sqrt{\delta}),
+    \qquad
+    \|u(a^\delta_\beta) - u^\delta\| = O(\delta).
+\end{equation}
+
+The abstract condition~\eqref{eq:source_condition} is hard to check directly, so Egger and
+Engl derive interpretable sufficient conditions by restricting to a single maturity and a time
+independent volatility. In that setting they prove two rate results of the
+form~\eqref{eq:convergence_rate}. Theorem 4.1 treats observations of prices, with the penalty
+strengthened to the $H^2$ norm. Theorem 4.2 keeps the $H^1$ penalty but assumes that the first
+price derivative is also observed, which is realistic because $C_K = e^{-y}u_y$ is the price of
+a digital call and is quoted on the market. In both, the source function must be smooth and
+decay like a Gaussian in the wings: with $g = \partial_y^4 w - \partial_y^2 w + w$ for the
+first result and $g = -w_{yy} + w$ for the second, the requirement is
+$|g|, |g_y|, |g_{yy}| = O(e^{-B' y^2})$ as $|y| \to \infty$.
+
+This decay condition is the precise form of the wing behaviour, and it explains the shape of a
+good prior. For strikes far from the money the prices carry almost no volatility information,
+so stable reconstruction there is impossible and the missing information has to come from
+$a^*$. The condition asks $a^\dagger - a^*$ to be small and smooth in the wings, which is why
+the priors in the experiments below are chosen to flatten away from the money. The effect is
+visible in Example 1, where the reconstruction returns to $a^*$ in exactly the region the data
+cannot constrain.
+
+Two points carry over to the rest of the chapter. The functional we minimize keeps the $H^1$
+penalty with price data, which is the setting of the stability and convergence results but not
+literally of either rate theorem, since those need the stronger $H^2$ penalty or the added
+derivative data. And the rate analysis is proved only for a time independent volatility, so a
+genuinely time dependent surface $a(y,\tau)$ lies outside its scope.
 
 \subsubsection{Choice of $\beta$ and stopping criterion}
 
