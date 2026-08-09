@@ -113,7 +113,7 @@ Differentiating the identity $\mathcal{C}(K,T) = \E[(S_T - K)^+]$ with respect t
     \qquad
     \E\!\left[\delta(S_T - K)\right] = \frac{\partial^2 \mathcal{C}}{\partial K^2}.
 \end{equation}
-The second identity is the Breeden--Litzenberger result \cite{breeden_litzenberger}: the second strike derivative
+The second identity is the Breeden-Litzenberger result \cite{breeden_litzenberger}: the second strike derivative
 of undiscounted call prices equals the risk-neutral density of $S_T$.
 To see why, let $p(\cdot, T)$ denote the risk-neutral density of $S_T$, so that
 \begin{equation*}
@@ -253,7 +253,7 @@ We follow \cite{egger2005tikhonov} and treat the calibration as a Tikhonov regul
 
 \subsection{Tikhonov regularization of the inverse pricing problem}
 
-\subsubsection{Change of variable --- log-moneyness}
+\subsubsection{Change of variable - log-moneyness}
 
 Market option prices depend on the ratio $K/S_0$ rather than on the absolute strike $K$.
 Working in log-moneyness
@@ -261,7 +261,7 @@ Working in log-moneyness
     y = \log(K/S_0), \qquad \text{equivalently} \quad K = S_0\,e^{y},
 \end{equation*}
 removes this dependence and puts the PDE in a translation-invariant form,
-just as the substitution $x = \log(S/K)$ reduced the Black--Scholes PDE to the heat
+just as the substitution $x = \log(S/K)$ reduced the Black-Scholes PDE to the heat
 equation in Section~\ref{sec:bs_pricing}.
 Define the time to maturity $\tau = T$,
 the diffusion coefficient $a(y,\tau) = \tfrac{1}{2}\sigma^2(K,T)$,
@@ -322,7 +322,7 @@ and Dirichlet boundary conditions
 \begin{equation}\label{eq:inverse_pde_2}
     u(-M, \tau) = \Psi_1(\tau), \qquad u(M, \tau) = \Psi_2(\tau).
 \end{equation}
-The boundary values are determined from the Black--Scholes formula evaluated
+The boundary values are determined from the Black-Scholes formula evaluated
 at the boundary strikes $K = S_0 e^{\pm M}$:
 as $M \to \infty$, the left boundary ($K \to 0$) gives the intrinsic value
 $\Psi_1(\tau) \to e^{-q\tau}$, and the right boundary ($K \to \infty$) gives $\Psi_2(\tau) \to 0$.
@@ -341,7 +341,7 @@ The \emph{parameter-to-solution map} $F = F_{a_0}$ is defined as
     F(a) = u(a) - u(a_0),
 \end{equation}
 where $a_0 \in \mathbb{R}$ with $\underline{a} \le a_0 \le \bar{a}$ is a reference constant
-and $u(a_0)$ can be computed from the Black--Scholes formula.
+and $u(a_0)$ can be computed from the Black-Scholes formula.
 A key regularity result established in \cite{egger2005tikhonov} is the following.
 
 \begin{theorem}[\cite{egger2005tikhonov}, Theorem 2.1]
@@ -460,7 +460,59 @@ Both systems are solved with a direct LU factorization at each time step.
 Gradient updates are assembled from~\eqref{eq:tikhonov_gradient} using the stored forward trajectory
 and the backward adjoint solution.
 
-\subsubsection{Numerical experiment --- Example 1}
+\subsubsection{Verification of the discrete adjoint gradient}\label{sec:adjoint_verification}
+
+The gradient~\eqref{eq:tikhonov_gradient} is assembled from the discrete forward and
+adjoint solutions rather than by differentiating the discrete functional in closed form.
+Before handing it to the optimizer we check that it is indeed the gradient of the discrete
+Tikhonov functional. We use two tests; a third, \texttt{scipy.optimize.check\_grad},
+returns a relative error of $3.7\times10^{-7}$.
+
+\paragraph{Tangent-linear/adjoint duality.}
+Write the data-fidelity term as $J_d(a)=\|u(a)-u^\delta\|^2_{L_2}$, with residual
+$r = u(a)-u^\delta$. The gradient returned by the adjoint solve should satisfy
+\begin{equation*}
+    \bigl\langle \nabla J_d(a),\, h\bigr\rangle_{\mathbb{R}^n}
+    = 2\bigl(r,\; u'(a)[h]\bigr)_{L_2}
+\end{equation*}
+for every direction $h$, with the right-hand side computed separately from the
+linearized solve~\eqref{eq:gateaux_derivative}. This equality is exact, with no
+finite-difference truncation, so if it holds the discrete adjoint is the exact transpose of
+the linearized forward operator. For a random $h$ on the Example~1 grid the two sides differ
+by $2.3\times10^{-15}$, i.e.\ at the level of rounding error.
+
+\paragraph{Taylor remainder test.}
+When the gradient is correct, the first-order Taylor remainder of the full functional decays
+one order faster in $t$ than the zeroth-order one:
+\begin{equation*}
+    R_0(t) = \bigl|J(a+th) - J(a)\bigr| = O(t),
+    \qquad
+    R_1(t) = \bigl|J(a+th) - J(a) - t\,\langle\nabla J(a), h\rangle\bigr| = O(t^2).
+\end{equation*}
+Table~\ref{tab:taylor_test} lists $R_0$ and $R_1$ as the step $t$ is reduced geometrically.
+The remainder $R_1$ falls at rate $\approx 2$, as it should when $\nabla J$ is exact.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{c c c c}
+        \toprule
+        $t$ & $R_0(t)$ & $R_1(t)$ & rate of $R_1$ \\
+        \midrule
+        $10^{-2}$ & $1.32\times10^{-6}$ & $5.13\times10^{-6}$ & - \\
+        $10^{-3}$ & $3.28\times10^{-7}$ & $5.27\times10^{-8}$ & $1.99$ \\
+        $10^{-4}$ & $3.76\times10^{-8}$ & $5.29\times10^{-10}$ & $2.00$ \\
+        $10^{-5}$ & $3.80\times10^{-9}$ & $5.29\times10^{-12}$ & $2.00$ \\
+        \bottomrule
+    \end{tabular}
+    \caption{Taylor remainder test for the discrete adjoint gradient (Example~1 setup).
+             The zeroth-order remainder $R_0$ decays at first order in $t$ and the
+             first-order remainder $R_1$ at second order (rate $\approx 2$), which is what an
+             exact gradient produces. The rate column is
+             $\log_{10}\!\bigl(R_1(10\,t)/R_1(t)\bigr)$.}
+    \label{tab:taylor_test}
+\end{table}
+
+\subsubsection{Numerical experiment - Example 1}
 
 We reproduce Example 1 (case A) of \cite{egger2005tikhonov}:
 constant volatility recovery on $y \in [-3,3]$ ($M = 3$), $\tau \in [0,1]$,
@@ -468,32 +520,32 @@ with $r = q = 0$ and spot $S_0 = 1000$.%
 \footnote{The paper's text states $S_0 = 100$, but its tabulated option values
 (e.g.\ a call worth $439$ at $K = 600$) and test~(D) (``an underlying worth $1000\$$'')
 are only consistent with $S_0 = 1000$; we use the latter. The recovered $a(y)$ is
-scale-invariant, but the Tikhonov balance is not---the data term scales as $S_0^2$
-while the penalty does not---so reproducing the paper's $\beta$ requires its $S_0$.}
+scale-invariant, but the Tikhonov balance is not, the data term scales as $S_0^2$
+while the penalty does not, so reproducing the paper's $\beta$ requires its $S_0$.}
 The true parameter is
 \[
     a^\dagger = 0.15 \quad \Longleftrightarrow \quad \sigma^\dagger = \sqrt{2 \times 0.15} \approx 0.548.
 \]
 Data $u^\delta$ are the exact option prices at $\tau = T = 1$ generated from the
-Black--Scholes formula (no noise, case A of the paper).
+Black-Scholes formula (no noise, case A of the paper).
 The initial guess and $a^*$ are both set to
 \[
     a^*_1(y) = 0.15 - 0.05\,\operatorname{erf}(-y^2),
 \]
 which agrees with the true value at the money and flattens out ($\partial_y a^* \to 0$,
-so $a^* \to 0.20$) for large $|y|$---the asymptotic behaviour invoked in
-\cite{egger2005tikhonov} for the convergence-rate theorems 4.1--4.2.
+so $a^* \to 0.20$) for large $|y|$, the asymptotic behaviour invoked in
+\cite{egger2005tikhonov} for the convergence-rate theorems 4.1-4.2.
 The regularization parameter is fixed at $\beta = 10^{-6}$ (exact data, so a small noise level).
 
-The PDE is discretized with $199$ linear ($P_1$) elements on $[-M, M]$---clustered
+The PDE is discretized with $199$ linear ($P_1$) elements on $[-M, M]$, clustered
 toward the money by a $\sinh$ node map, since the price data are informative only near
-$y = 0$---and $200$ implicit-Euler steps in $\tau$, and the Tikhonov functional is
+$y = 0$, and $200$ implicit-Euler steps in $\tau$, and the Tikhonov functional is
 minimized by L-BFGS-B using the adjoint gradient~\eqref{eq:tikhonov_gradient}.
 Figure~\ref{fig:egger_ex1} shows the result: the recovered $a(y)$ matches the true
 constant $a^\dagger = 0.15$ across the strike range the data constrain (reproducing
 Tables~1--2 of \cite{egger2005tikhonov} to four digits), while in the deep
-in-/out-of-the-money tails---where the prices carry almost no volatility
-information---it reverts to the \emph{a~priori} guess $a^*_1$, a direct manifestation
+in-/out-of-the-money tails, where the prices carry almost no volatility
+information, it reverts to the \emph{a~priori} guess $a^*_1$, a direct manifestation
 of the ill-posedness discussed above.
 
 \begin{figure}[h]
@@ -508,20 +560,72 @@ of the ill-posedness discussed above.
     \label{fig:egger_ex1}
 \end{figure}
 
+\subsubsection{Numerical experiment - Example 2}
+
+Example~1 has a constant target and is recovered almost exactly, so it mainly exercises the
+forward and adjoint solvers. Example~2 of \cite{egger2005tikhonov} puts more weight on the
+regularization. Its true coefficient is the oscillatory profile
+\begin{equation}\label{eq:egger_ex2_true}
+    a^\dagger(y) = 0.15 + 0.05\,e^{-(y+0.3)^2}\sin(2\pi y) + 0.05\,\operatorname{erf}(20 y),
+\end{equation}
+with a steep step at the money (the $\operatorname{erf}(20y)$ term) and oscillations that
+decay into the wings. The domain, rates and spot are those of Example~1
+($y\in[-3,3]$, $r=q=0$, $S_0=1000$, $\tau\in[0,1]$). To avoid an \emph{inverse crime} we
+generate the synthetic data on a wider domain $[-5,5]$, with a four-times finer mesh and time
+step, and interpolate them onto the coarser reconstruction grid, so the data do not come from
+the same discretized operator that is later inverted; \cite{egger2005tikhonov} use a different
+time-integration scheme for the same reason.
+
+We run the paper's five cases. All use the \emph{a~priori} guess
+$a^*_1(y) = 0.15 + 0.05\,\operatorname{erf}(2y)$, which has the correct wings, except case~C,
+which uses the deliberately poor constant prior $a^* = 0.15$:
+\begin{itemize}
+    \item[(A)] complete, exact data;
+    \item[(B)] incomplete data, only $20$ strikes observed;
+    \item[(C)] complete, exact data with the poor constant prior;
+    \item[(D)] complete data with $0.1\%$ noise;
+    \item[(BD)] incomplete and noisy.
+\end{itemize}
+The exact-data cases use a single small $\beta = 10^{-6}$. The noisy cases (D, BD) select
+$\beta$ with the decreasing-$\beta$ schedule and Morozov discrepancy principle described
+above, starting from $\beta_0 = 10^2\delta$ and warm-starting each minimization from the
+previous one.
+
+Figure~\ref{fig:egger_ex2} shows the recovered coefficient for the five cases. With complete
+exact data~(A) the reconstruction tracks both the oscillation and the sharp step over the
+informative range $y\in[-1.3,1.3]$ and returns to $0.20$ in the wings. Incomplete data~(B) is
+almost as good near the observed strikes. Case~C isolates the effect of the prior: the fit is
+still accurate where the data are informative, but in the wings it settles on the wrong prior
+value $0.15$ rather than the true $0.10/0.20$, since prices there carry almost no information
+about the volatility. The noisy cases~(D, BD) are less accurate, and BD, which is both
+incomplete and noisy, is the hardest and the most sensitive to the prior, matching the
+behaviour reported in \cite{egger2005tikhonov}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{egger_example2_recovery}
+    \caption{Example~2 of \cite{egger2005tikhonov}: recovery of the oscillatory local
+             variance $a^\dagger(y)$~\eqref{eq:egger_ex2_true} (red dashed) for the five test
+             cases. Blue: recovered $a(y)$; grey dotted: prior $a^*$; black dots (B, BD):
+             observed strikes; shaded band: the strikes $K = 600$--$1800$ tabulated in the
+             paper.}
+    \label{fig:egger_ex2}
+\end{figure}
+
 \subsubsection{Alternative approach: Interpolation/Extrapolation of the IV surface}\label{sec:impl_vol}
 
 The Tikhonov approach above inverts the forward pricing operator directly and is robust to
 the noise and sparsity of market quotes, at the cost of solving a regularized optimization
 problem. A computationally lighter alternative is to first construct a smooth,
-arbitrage-free \emph{implied volatility surface} from the quoted options---by interpolating
-in the liquid region and extrapolating into the wings---convert it to a continuous call-price
-surface $C(K,T)$ through the Black--Scholes formula, and then read off the local volatility
+arbitrage-free \emph{implied volatility surface} from the quoted options-by interpolating
+in the liquid region and extrapolating into the wings-convert it to a continuous call-price
+surface $C(K,T)$ through the Black-Scholes formula, and then read off the local volatility
 by applying the Dupire formula~\eqref{eq:dupire_formula} pointwise. Here the regularization is
 implicit, supplied by the smoothness of the chosen interpolant rather than by an explicit
 penalty, and the no-arbitrage conditions of the previous section must be enforced on the
 fitted surface for the resulting local variance to stay positive.
 
 We build such a surface from market data and use it as the input to the Dupire formula;
-the full construction---risk-free curve, dividend-yield calibration, and the out-of-the-money
-composite from which the smiles are assembled---is detailed in
+the full construction-risk-free curve, dividend-yield calibration, and the out-of-the-money
+composite from which the smiles are assembled-is detailed in
 Appendix~\ref{app:impl_vol}.

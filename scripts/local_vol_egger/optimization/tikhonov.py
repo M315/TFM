@@ -54,10 +54,9 @@ def cost_and_grad(a_vec, a_vol, u_0, u_obs, a_prior_vec, beta,
     residual = Function(V)
     set_array(residual, get_array(u_pred) - get_array(u_obs))
     if obs_mask is not None:
-        # Restrict the misfit to the observed strikes.  Masking the residual is
-        # consistent for both the cost and the adjoint gradient: the projection
-        # P is idempotent, so \partial_a \frac{1}{2}\|P(u-u^\delta)\|^2 = \int P(u-u^\delta)\cdot w(T), i.e. the adjoint
-        # terminal condition is simply the masked residual.
+        # Restrict the misfit to the observed strikes. The same masked residual is correct
+        # for both the cost and the gradient: the mask P is a projection (P^2 = P), so the
+        # adjoint terminal condition is just P times the residual.
         set_array(residual, get_array(residual) * obs_mask)
 
     # Data-fidelity term: \|u(a) - u^\delta\|^2_{L^2}
@@ -107,7 +106,7 @@ def run(u_0, u_obs, a_init, a_prior_vec, beta,
     args = (a_init, u_0, u_obs, a_prior_vec, beta,
             V, r, q, y_0, y_1, t_0, t_1, M_time, psi_1, psi_2, obs_mask)
 
-    print(f"Tikhonov  β={beta:.1e}  N_params={n}")
+    print(rf"Tikhonov  \beta={beta:.1e}  N_params={n}")
 
     res = scipy.optimize.minimize(
         fun=cost_and_grad,
@@ -122,3 +121,63 @@ def run(u_0, u_obs, a_init, a_prior_vec, beta,
     print(f"Done.  cost={res.fun:.4e}  success={res.success}")
     a_init.update(V, res.x)
     return a_init, res
+
+
+def data_misfit(a_vol, u_0, u_obs, V, r, q, y_0, y_1, t_0, t_1, M_time,
+                psi_1, psi_2, obs_mask=None):
+    r"""Data-term norm \|P(u(a) - u^\delta)\|_{L^2} at the current parameter."""
+    dt = (t_1 - t_0) / M_time
+    u_pred, _ = compute_Af(a_vol, u_0, dt, M_time, V, r, q, y_0, y_1, t_0, psi_1, psi_2)
+    res = Function(V)
+    set_array(res, get_array(u_pred) - get_array(u_obs))
+    if obs_mask is not None:
+        set_array(res, get_array(res) * obs_mask)
+    return L2_norm(res)
+
+
+def run_discrepancy(u_0, u_obs, a_init, a_prior_vec, delta,
+                    V, r, q, y_0, y_1, t_0, t_1, M_time, psi_1, psi_2,
+                    beta_hi_k=1e2, beta_lo_k=1e-3, n_beta=8, tau_morozov=1.5,
+                    max_iter=300, ftol=1e-12, gtol=1e-10, obs_mask=None):
+    r"""
+    Minimise J^\beta along a decreasing \beta schedule, stopping by the Morozov
+    discrepancy principle (Egger & Engl 2005, \S5.3).
+
+    The schedule is \beta_i geometrically decreasing from beta_hi_k*delta to
+    beta_lo_k*delta; each minimisation warm-starts from the previous minimiser.
+    Iteration stops as soon as the data misfit \|u(a^\delta_\beta) - u^\delta\|
+    drops below tau_morozov * delta.
+
+    Parameters
+    ----------
+    delta      : float - noise level \delta (data-term L^2 norm of the noise)
+    beta_hi_k,
+    beta_lo_k  : float - schedule endpoints as multiples of \delta
+    n_beta     : int   - number of \beta values in the geometric schedule
+    tau_morozov: float - discrepancy safety factor \tau > 1
+
+    Returns
+    -------
+    a_cur     : Vol - calibrated parameter (updated in place)
+    res       : scipy OptimizeResult of the final minimisation
+    beta_used : float - the \beta at which the schedule stopped
+    """
+    betas = np.geomspace(beta_hi_k * delta, beta_lo_k * delta, n_beta)
+    print(rf"Discrepancy schedule  \delta={delta:.4e}  "
+          rf"\beta: {betas[0]:.2e} -> {betas[-1]:.2e}  \tau={tau_morozov}")
+
+    a_cur, res, beta_used = a_init, None, betas[-1]
+    for beta in betas:
+        a_cur, res = run(u_0, u_obs, a_cur, a_prior_vec, beta,
+                         V, r, q, y_0, y_1, t_0, t_1, M_time, psi_1, psi_2,
+                         max_iter=max_iter, ftol=ftol, gtol=gtol, obs_mask=obs_mask)
+        mis = data_misfit(a_cur, u_0, u_obs, V, r, q, y_0, y_1, t_0, t_1, M_time,
+                          psi_1, psi_2, obs_mask)
+        beta_used = beta
+        print(rf"  \beta={beta:.3e}  misfit={mis:.4e}  "
+              rf"(target \tau\delta={tau_morozov*delta:.4e})")
+        if mis <= tau_morozov * delta:
+            print(rf"  Morozov discrepancy satisfied at \beta={beta:.3e}")
+            break
+
+    return a_cur, res, beta_used

@@ -9,6 +9,7 @@
 *.out
 
 *.pyc
+__pycache__/
 /references/*
 
 .*/*

@@ -167,7 +167,7 @@ def test_check_grad(V, u_0, u_obs, a0, beta=0.0):
 
 if __name__ == "__main__":
     print("=" * 70)
-    print("  Adjoint-gradient verification — Egger calibration (legacy dolfin)")
+    print("  Adjoint-gradient verification - Egger calibration (legacy dolfin)")
     print("=" * 70)
     V, u_0, u_obs, a0 = _setup()
     test_tlm_adjoint_identity(V, u_0, u_obs, a0)

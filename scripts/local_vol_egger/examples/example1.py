@@ -126,7 +126,7 @@ def _prior_func(case):
     """Initial guess / regularisation centre a*(y) for the given case."""
     if case == "C":
         return lambda y: np.full_like(y, 0.10)        # bad constant prior
-    return lambda y: 0.10 - 0.05 * erf(-y ** 2)        # a*_1 (cases A, B, D, BD)
+    return lambda y: 0.15 - 0.05 * erf(-y ** 2)        # a*_1 (cases A, B, D, BD)
 
 
 def _build_obs_mask(V):
@@ -183,7 +183,7 @@ def setup(V, case):
         set_array(noise_fn, noise * obs_mask if obs_mask is not None else noise)
         delta = L2_norm(noise_fn)
         beta  = BETA_NOISE_K * delta
-        print(f"[case {case}] noise level δ = {delta:.4e}  →  β = {beta:.4e}")
+        print(rf"[case {case}] noise level \delta = {delta:.4e}  ->  \beta = {beta:.4e}")
 
     # Initial guess / prior
     prior = _prior_func(case)
@@ -294,14 +294,14 @@ def run():
 def _print_table(case, rows, C_true):
     """Print the reconstructed option value / volatility for one case."""
     print("\n" + "=" * 74)
-    print(f"  Example 1, case {case} — strikes {STRIKES[0]}…{STRIKES[-1]}, S0={S0:.0f}, T=1y")
+    print(f"  Example 1, case {case} -- strikes {STRIKES[0]}...{STRIKES[-1]}, S0={S0:.0f}, T=1y")
     print("=" * 74)
-    print(f"{'Strike':>7} | {'y':>7} | {'C_true':>9} {'C_recon':>9} {'ΔC':>8}"
-          f" | {'a_true':>7} {'a_recon':>8} {'σ_recon':>8}")
+    print(f"{'Strike':>7} | {'y':>7} | {'C_true':>9} {'C_recon':>9} {r'\Delta C':>9}"
+          f" | {'a_true':>7} {'a_recon':>8} {r'\sigma_rec':>10}")
     print("-" * 74)
     for (K, y, C_rec, a_rec, sigma) in rows:
-        print(f"{K:>7} | {y:>7.3f} | {C_true[K]:>9.2f} {C_rec:>9.2f} {C_rec - C_true[K]:>8.3f}"
-              f" | {A_TRUE:>7.4f} {a_rec:>8.4f} {sigma:>8.4f}")
+        print(f"{K:>7} | {y:>7.3f} | {C_true[K]:>9.2f} {C_rec:>9.2f} {C_rec - C_true[K]:>9.3f}"
+              f" | {A_TRUE:>7.4f} {a_rec:>8.4f} {sigma:>10.4f}")
     print("=" * 74)
 
 
@@ -357,7 +357,7 @@ def _plot(a_cal, a_prior_vec, u_0, u_obs, V, case, obs_mask):
         ax.plot(y[on], a_rec[on], 'k.', ms=8, label='Observed strikes')
     ax.set_xlabel('Log-moneyness $y$')
     ax.set_ylabel(r'$a(y) = \frac{1}{2}\sigma^2$')
-    ax.set_title(f'Parameter recovery — Example 1 (case {case})')
+    ax.set_title(f'Parameter recovery -- Example 1 (case {case})')
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.4)
 
@@ -368,14 +368,14 @@ def _plot(a_cal, a_prior_vec, u_0, u_obs, V, case, obs_mask):
     err = Function(V)
     set_array(err, get_array(u_pred) - get_array(u_obs))
     l2_err = L2_norm(err)
-    print(f"Reprice L² error: {l2_err:.4e}")
+    print(f"Reprice L^2 error: {l2_err:.4e}")
 
     ax = axes[1]
     ax.plot(y, get_array(err)[idx], 'g-', lw=1.5)
     ax.axhline(0, color='k', lw=0.8)
     ax.set_xlabel('Log-moneyness $y$')
     ax.set_ylabel(r'$u_{\mathrm{pred}} - u^{\delta}$')
-    ax.set_title(f'Reprice residual  (L² = {l2_err:.2e})')
+    ax.set_title(f'Reprice residual  ($L^2$ = {l2_err:.2e})')
     ax.grid(True, alpha=0.4)
 
     plt.tight_layout()
