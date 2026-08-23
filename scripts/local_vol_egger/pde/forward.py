@@ -52,7 +52,7 @@ def compute_Af(a_vol, u_initial, dt, M_time, V, r, q, y_0, y_1, t_0, psi_1, psi_
     return u, trajectory
 
 
-def _step(u_old, a_func, dt, V, r_rate, q_rate, bcs):
+def _step(u_old, a_func, dt, V, r_rate, q_rate, bcs, c_rate=None):
     r"""
     One backward-Euler step of the forward Dupire PDE.
 
@@ -62,7 +62,12 @@ def _step(u_old, a_func, dt, V, r_rate, q_rate, bcs):
         + dt [ \int a u_y v_y dy
              + \int \partial_y a \cdot u_y v dy
              + \int (a + r - q) u_y v dy
-             + \int q u v dy ] = 0
+             + \int c u v dy ] = 0
+
+    `c_rate` is the zeroth-order (reaction) coefficient, q by default. Passing
+    c_rate = 0 solves instead for the discounted variable u = e^{\int_0^\tau q} C of
+    Egger & Engl, whose equation -u_\tau + a(u_yy - u_y) + (q-r)u_y = 0 has no
+    reaction term. See the annex subsection on the discounted normalization.
     """
     u = TrialFunction(V)
     v = TestFunction(V)
@@ -70,6 +75,7 @@ def _step(u_old, a_func, dt, V, r_rate, q_rate, bcs):
     dt_c = Constant(dt)
     r_c  = Constant(r_rate)
     q_c  = Constant(q_rate)
+    c_c  = Constant(q_rate if c_rate is None else c_rate)
 
     F = (
         (u - u_old) * v * dx
@@ -77,7 +83,7 @@ def _step(u_old, a_func, dt, V, r_rate, q_rate, bcs):
             a_func * dot(grad(u), grad(v)) * dx          # \int a u_y v_y
             + a_func.dx(0) * u.dx(0) * v * dx             # \int \partial_y a \cdot u_y v
             + (a_func + r_c - q_c) * u.dx(0) * v * dx     # \int (a+r-q) u_y v
-            + q_c * u * v * dx                            # \int q u v
+            + c_c * u * v * dx                            # \int c u v  (c = q, or 0 if discounted)
         )
     )
 

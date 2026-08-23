@@ -78,6 +78,12 @@ def h1_reg_gradient(da, beta, V):
     return assemble(form).get_local()
 
 
+def l2_mass_apply(f, V):
+    """Mass-matrix action M f as a DOF vector, i.e. the L2 inner product (f, .)."""
+    h = TestFunction(V)
+    return assemble(f * h * dx).get_local()
+
+
 def bs_call(S0, y, r, q, sigma, tau):
     """
     Black-Scholes call price with log-moneyness y = log(K / S0).

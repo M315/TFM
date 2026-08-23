@@ -1,0 +1,118 @@
+% ----------------------------------
+%   Appendix B: Local Volatility Surface — Implementation Details
+% ----------------------------------
+
+\section{Local Volatility Surface - Implementation Details}
+\label{app:local_vol}
+
+
+This appendix collects the implementation details of the local volatility calibration of
+Section~\ref{sec:market_surface} that do not fit in the main text.
+All code lives in \href{https://github.com/M315/TFM/tree/main/scripts/local_vol_egger/}{Local Volatility Code}
+and runs from the same cached SPY snapshot dated 2026-04-30
+used throughout Appendix~\ref{app:impl_vol}.
+
+% ----------------------------------
+\subsection{The discounted normalization $u = e^{\int_t^T q\,ds}\,C$}
+\label{subsec:discounted_normalization}
+
+Throughout Section~\ref{sec:market_surface} we work with the normalized call price
+$u = C/S_0$ and keep the explicit zero-order term of~\eqref{eq:inverse_pde_1}.
+\cite{egger2005tikhonov} instead absorb the dividend factor into the unknown by setting
+\begin{equation*}
+    \tilde{u}(y,\tau) = e^{\int_t^T q(s)\,ds}\,u(y,\tau),
+\end{equation*}
+which cancels the $-q\,u$ term and leaves the shorter equation
+\begin{equation*}
+    -\tilde{u}_\tau + a\,(\tilde{u}_{yy} - \tilde{u}_y) + (q - r)\,\tilde{u}_y = 0 .
+\end{equation*}
+A deterministic factor relates the two normalizations, so they describe the same continuous
+problem and coincide exactly when $q = 0$, as in Examples~1 and~2.
+On the market surface $q$ comes from put-call parity (Appendix~\ref{subsec:div_yield_cal})
+and reaches about $1.1\%$, so the only thing that can separate them is the discretization.
+Which one discretizes better is not obvious.
+The discounted form treats the exponential decay in $\tau$ exactly instead of leaving it to the
+backward Euler scheme, but it pays for that by rescaling the data and the boundary values,
+which reweights the residual across maturities.
+We implemented both and compared them.
+Both remain in the code, selected by the \texttt{--discount} flag of the surface calibration
+script, and \texttt{examples/example8\_discounting.py} reproduces the two tables below.
+
+The discounted form needs three changes: drop the zero-order coefficient from the variational
+forms~\eqref{eq:variational_forward_eq} and~\eqref{eq:variational_adjoint_eq}, multiply the
+observed prices and the Dirichlet data by $e^{\int_0^\tau q}$, and divide that factor out again
+when the calibrated surface is repriced.
+The two solvers do agree on the continuous problem.
+Holding $a$ fixed at the implied volatility seed and converting the discounted solution back to
+prices, the two forward solves match to $9\times 10^{-3}$ dollars on a spot of $720$.
+That is a relative difference of $10^{-4}$, the $O(\Delta\tau)$ gap we expect.
+
+Refining the time grid tells us which one is closer to the exact solution.
+We solved forward at the production grid of $N = 300$ time steps and compared against a
+reference computed on the same time levels with $N = 2400$.
+Table~\ref{tab:discounted_pde} reports the error averaged over the nine quoted maturities, and
+repeats the experiment at artificially inflated dividend yields.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{c c c c}
+        \toprule
+        $q$ & explicit $-q\,u$ & discounted & ratio \\
+        \midrule
+        market ($\leq 1.1\%$) & $5.62\times10^{-2}$ & $5.47\times10^{-2}$ & $1.03$ \\
+        $2\%$  & $5.43\times10^{-2}$ & $5.39\times10^{-2}$ & $1.01$ \\
+        $5\%$  & $4.64\times10^{-2}$ & $4.58\times10^{-2}$ & $1.01$ \\
+        $10\%$ & $3.51\times10^{-2}$ & $3.43\times10^{-2}$ & $1.02$ \\
+        $20\%$ & $4.82\times10^{-2}$ & $4.53\times10^{-2}$ & $1.06$ \\
+        \bottomrule
+    \end{tabular}
+    \caption{Time discretization error of the forward solve at $N = 300$ time steps, in dollars
+             against an $N = 2400$ reference on the same time levels, averaged over the nine
+             quoted maturities. The first row uses the calibrated dividend term structure, the
+             others a flat override. The discounted form never gains more than $6\%$, because
+             the backward Euler error is dominated by the kink of the payoff and by the
+             convection term rather than by the zero-order term.}
+    \label{tab:discounted_pde}
+\end{table}
+
+Even at a dividend yield of $20\%$, an order of magnitude above anything SPY pays, the gain is
+a few percent.
+The same holds for the inverse problem.
+Running the full surface calibration~\eqref{eq:surface_functional} both ways gives surfaces
+that differ by up to $0.5$ volatility points, which looks large until the two effects are
+separated.
+Table~\ref{tab:discounted_calibration} reprices each calibrated surface with both solvers.
+Swapping the solver moves the median error by $0.001$ percentage points, swapping the surface
+moves it by $0.02$.
+The gap therefore measures the path the optimizer took through a flat valley of the Tikhonov
+functional, not the normalization.
+Neither surface is better than the other either, since the one with the lower median error over
+the liquid strikes carries the higher unweighted data misfit.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{l l c c}
+        \toprule
+        calibrated with & repriced with & median error & data misfit (\$$^2$) \\
+        \midrule
+        discounted        & discounted        & $0.124\%$ & $0.02581$ \\
+        discounted        & explicit $-q\,u$  & $0.125\%$ & $0.02621$ \\
+        explicit $-q\,u$  & discounted        & $0.143\%$ & $0.02553$ \\
+        explicit $-q\,u$  & explicit $-q\,u$  & $0.144\%$ & $0.02591$ \\
+        \bottomrule
+    \end{tabular}
+    \caption{Each calibrated surface of Section~\ref{sec:market_surface} repriced with both
+             solvers ($\beta_y = 10^{-1}$, $\beta_\tau = 1$, nine maturities). The median error
+             is taken over the liquid strikes of each maturity, the data misfit is the
+             unweighted term of~\eqref{eq:surface_functional}. The two rows of each block differ
+             only by the solver and barely move, so what separates the blocks is the optimizer
+             path.}
+    \label{tab:discounted_calibration}
+\end{table}
+
+Neither approach outperforms the other on this data, so we keep the explicit zero-order form as
+the default. It compares the solver output directly against the quoted prices, with no
+rescaling in between.
+The discounted form is the better choice on an underlying with a large carry, a high dividend
+single stock or an FX option, where the foreign rate plays the role of $q$ and the factor
+$e^{\int_t^T q}$ is no longer close to one.

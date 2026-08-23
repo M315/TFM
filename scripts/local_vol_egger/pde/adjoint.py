@@ -61,7 +61,7 @@ def compute_adj_dAf(a_vol, residual, trajectory, dt, M_time, V, r, q, y_0, y_1, 
     return gradients, m
 
 
-def _step(m_curr, u_t, a_func, dt, V, r_rate, q_rate, bcs):
+def _step(m_curr, u_t, a_func, dt, V, r_rate, q_rate, bcs, c_rate=None):
     r"""
     One backward-Euler step of the adjoint equation, plus the gradient contribution.
 
@@ -75,7 +75,10 @@ def _step(m_curr, u_t, a_func, dt, V, r_rate, q_rate, bcs):
         + dt [ \int (am)_y v_y dy
              + \int a m v_y dy
              + \int (r-q) m v_y dy
-             + \int q m v dy ] = 0
+             + \int c m v dy ] = 0
+
+    `c_rate` mirrors the forward reaction coefficient (q by default, 0 for the
+    discounted variable); the gradient 1-form is unaffected by it.
 
     Gradient contribution assembled as a linear 1-form:
 
@@ -89,6 +92,7 @@ def _step(m_curr, u_t, a_func, dt, V, r_rate, q_rate, bcs):
     dt_c = Constant(dt)
     r_c  = Constant(r_rate)
     q_c  = Constant(q_rate)
+    c_c  = Constant(q_rate if c_rate is None else c_rate)
 
     adj_form = (
         (m - m_curr) * v * dx
@@ -96,7 +100,7 @@ def _step(m_curr, u_t, a_func, dt, V, r_rate, q_rate, bcs):
             a_func * dot(grad(m), grad(v)) * dx     # \int a m_y v_y        ] together these
             + m * dot(grad(a_func), grad(v)) * dx   # \int \partial_y a m v_y  ] give \int (am)_y v_y
             + (a_func + r_c - q_c) * m * v.dx(0) * dx   # \int (a+r-q) m v_y
-            + q_c * m * v * dx                          # \int q m v
+            + c_c * m * v * dx                          # \int c m v
         )
     )
 
