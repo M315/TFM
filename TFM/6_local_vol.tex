@@ -260,17 +260,18 @@ following \cite{bergomi_stochastic_vol} and \cite{derman_vol_smile}.
 
 \subsubsection{Implied volatility as an average of local volatility}
 
-Let $C_{\hat{\sigma}}$ be the Black-Scholes price of the call of strike $K$ and maturity $T$
+Let $C_{\hat{\sigma}}$ be the Black-Scholes price of a call option with strike $K$ and maturity $T$
 computed with a constant volatility equal to its implied volatility $\hat{\sigma}(K,T)$
 as defined in \eqref{eq:implied_vol}.
-Delta hedging that option with the Black-Scholes model while the spot actually diffuses
-with the local volatility $\sigma(t,S)$ generates, between two rehedges, the gamma/theta P\&L
+Delta hedging this option with the Black-Scholes model, i.e. using the implied volatility,
+while the spot actually diffuses with the local volatility $\sigma(t,S)$ generates,
+between two rehedges, the gamma/theta non-zero P\&L given by
 \begin{equation*}
     \frac{1}{2}\,S_t^2\,\frac{\partial^2 P_{\hat{\sigma}}}{\partial S^2}
     \left(\sigma(t, S_t)^2 - \hat{\sigma}^2\right) dt .
 \end{equation*}
-By definition of $\hat{\sigma}$ the two models price the option identically,
-so the accumulated discounted P\&L has zero expectation under the local volatility dynamics,
+By construction the two models price the option identically,
+so the discounted P\&L over time has zero expected value under the local volatility dynamics,
 which after rearranging gives \cite{bergomi_stochastic_vol}
 \begin{equation}\label{eq:iv_gamma_average}
     \hat{\sigma}(K,T)^2
@@ -284,84 +285,97 @@ which after rearranging gives \cite{bergomi_stochastic_vol}
 \end{equation}
 the expectation being taken over paths of the local volatility model.
 
-The implied variance is thus an average of the local variance along the paths,
-weighted by the dollar gamma of the option.
+Thus implied variance, $\hat{\sigma}^2$,
+is an average of the local variance, $\sigma(t, S)^2$, along the paths,
+weighted by the gamma of the option.
 The relation is implicit, since $\hat{\sigma}$ appears in the weights on the right,
 so it is not a practical pricing formula,
-but it already gives the qualitative picture:
-an implied volatility is not a local volatility at a point
+but it gives a the intuition that an implied volatility is not a local volatility at a point,
 but a smoothed version of it over the region of $(t, S)$ where the option carries gamma.
 The smile is therefore always flatter than the local volatility surface that generates it.
 
-\subsubsection{The smile near the forward}
+\subsubsection{The rule of two}
 
-To turn \eqref{eq:iv_gamma_average} into explicit statements one expands around a constant
-volatility $\sigma_0$, assuming a smooth and weakly local volatility function
-\begin{equation}\label{eq:lv_moneyness_expansion}
-    \sigma(t, S) = \sigma(t) + \alpha(t)\,x + \frac{\beta(t)}{2}\,x^2,
-    \qquad x = \ln\!\left(S / F_t\right),
+A central result of the local volatility model concerns the relationship
+between the skew of the local volatility function and the skew of the implied volatility smile.
+
+Define the at the money forward, ATMF,
+skew $\mathcal{S}_T$ as the slope of the implied volatility smile
+with respect to log-strike, evaluated at the forward:
+\begin{equation}
+    \mathcal{S}_T := \left.\frac{\partial \hat{\sigma}(K,T)}{\partial \ln K}\right|_{K=F_T}.
 \end{equation}
-with $F_t = S_0 e^{(r-q)t}$ the forward and $\alpha, \beta$ small.
-At first order in $\alpha$ and $\beta$ the skew and the curvature of the smile at the money forward
-are the time averages \cite{bergomi_stochastic_vol}
-\begin{equation}\label{eq:skew_averaging}
-    \mathcal{S}_T := \left.\frac{\partial \hat{\sigma}}{\partial \ln K}\right|_{K = F_T}
-        = \frac{1}{T}\int_0^T \frac{t}{T}\,\alpha(t)\,dt,
-    \qquad
-    \left.\frac{\partial^2 \hat{\sigma}}{\partial (\ln K)^2}\right|_{K = F_T}
-        = \frac{1}{T}\int_0^T \frac{t^2}{T^2}\,\beta(t)\,dt .
+
+Consider a local volatility function of the form
+\begin{equation}
+    \sigma(t, S) = \sigma_0 + \alpha(t)\, x + \cdots, \qquad x = \ln\left(\frac{S}{F_t}\right),
 \end{equation}
-For $\alpha$ and $\beta$ constant the weights integrate to $1/2$ and $1/3$:
-the skew of the smile is half the skew of the local volatility function,
-and its curvature is one third of the curvature of the local volatility function.
-The first of these is Derman's factor of two \cite{derman_vol_smile},
-which we derive again in Section~\ref{sec:factor_two}
-as the short maturity limit of an exact result
-and verify there on a surface calibrated from market data.
-Equation \eqref{eq:skew_averaging} says the same thing for any maturity, at first order:
-whatever term structure $\alpha(t)$ has,
-the smile only sees it through a weighted average that gives no weight to $t = 0$.
+where $\alpha(t)$ is the local volatility skew.
+
+To first order in $\alpha$, the implied ATMF skew is given by
+\begin{equation}
+    \mathcal{S}_T = \frac{1}{T}\int_0^T \frac{t}{T}\,\alpha(t)\,dt .
+\end{equation}
+
+If $\alpha(t)=\alpha$ is constant in time, the integral gives
+\begin{equation}
+    \mathcal{S}_T = \frac{1}{2}\,\alpha.
+\end{equation}
+
+Thus, for a constant local volatility skew, the implied skew is half the local skew.
+The averaging inherent in the mapping from local to implied volatilities
+smooths out the local volatility surface, making the implied smile flatter.
 
 \subsubsection{Smile dynamics and the skew stickiness ratio}
 
-Once $\sigma(t, S)$ is fixed, \eqref{eq:iv_gamma_average} shows that implied volatilities are
-functions of $t$ and $S$ alone.
-The model therefore makes a definite prediction about how the smile moves when the spot moves,
-and this prediction is not a free parameter: it is fixed by the smile the model was calibrated to.
-Differentiating \eqref{eq:skew_averaging} while letting the strike follow the forward gives
-\cite{bergomi_stochastic_vol}
-\begin{equation}\label{eq:atmf_vol_move}
-    \frac{d\hat{\sigma}(F_T, T)}{d \ln S_0}
-        = \frac{1}{T}\int_0^T \alpha(t)\,dt
-        = \mathcal{S}_T + \frac{1}{T}\int_0^T \mathcal{S}_t\,dt .
-\end{equation}
-The rate at which the at the money forward volatility moves with the spot is dictated entirely
-by the term structure of the skew.
-Normalising by the skew itself defines the dimensionless \textbf{skew stickiness ratio}
-\begin{equation}\label{eq:ssr}
-    R_T = \frac{1}{\mathcal{S}_T}\,\frac{d\hat{\sigma}(F_T, T)}{d \ln S_0},
-\end{equation}
-which measures how much the at the money volatility responds to a move of the spot,
-in units of the skew.
-It separates the two regimes described by Derman \cite{derman_vol_smile}:
-$R_T = 1$ is the \textit{sticky-strike} regime,
-where volatilities at fixed strikes stay frozen and the at the money volatility slides along the smile,
-and $R_T = 0$ is the \textit{sticky-delta} regime,
-where the whole smile is translated with the spot.
+In the local volatility model, the smile's dynamics are fully determined by the smile itself.
+There is no freedom to choose how implied volatilities move when the spot moves.
 
-The local volatility model sits in neither.
-From \eqref{eq:atmf_vol_move},
-\begin{equation}\label{eq:ssr_local_vol}
-    R_T = 1 + \frac{1}{T}\int_0^T \frac{\mathcal{S}_t}{\mathcal{S}_T}\,dt,
+The key quantity is the ATMF volatility $\hat{\sigma}_{F_T}$,
+the implied volatility for a strike equal to the forward $F_T$.
+And the key question is, to understand the dynamics is,
+when the spot moves by $d\ln S_0$, how does this volatility change?
+
+To first order in the local skew $\alpha(t)$,
+\begin{equation}
+    \frac{d\hat{\sigma}_{F_T}(T)}{d\ln S_0}
+    = \frac{1}{T}\int_0^T \alpha(t)\,dt .
 \end{equation}
-so a skew that does not depend on maturity gives $R_T = 2$ for every $T$,
-and $R_T \to 2$ as $T \to 0$ for any smooth $\alpha$.
-Both statements are in fact exact, not only true at first order \cite{bergomi_stochastic_vol}.
-This is the dynamic face of the factor of two:
-the at the money volatility moves with the spot at twice the rate at which it moves with the strike.
-It is also the standard criticism of the model.
-The spot/volatility covariance it produces is not something one can choose:
-it is whatever the calibrated smile implies.
-That rigidity, rather than the quality of the fit to today's smile,
-is what motivates stochastic volatility models,
-where the skew and the spot/volatility covariance can be set independently.
+
+Using the expression for the ATMF skew $\mathcal{S}_T$ from the previous subsection,
+this can be rewritten as
+\begin{equation}
+    \frac{d\hat{\sigma}_{F_T}(T)}{d\ln S_0}
+    = \mathcal{S}_T + \frac{1}{T}\int_0^T \mathcal{S}_t\,dt .
+\end{equation}
+
+The rate at which the ATMF volatility moves with the spot is thus dictated entirely
+by the term structure of the ATMF skew.
+
+Practitioners define the \textbf{skew stickiness ratio} (SSR) as
+\begin{equation}
+    \mathcal{R}_T := \frac{1}{\mathcal{S}_T}\,\frac{d\hat{\sigma}_{F_T}(T)}{d\ln S_0}.
+\end{equation}
+
+The SSR measures how much the ATMF volatility moves with the spot,
+in units of the ATMF skew.
+Two familiar regimes serve as benchmarks:
+\begin{itemize}
+    \item $\mathcal{R}_T = 0$: the smile moves with the spot so that volatilities at fixed log-moneyness stay constant (sticky-delta).
+    \item $\mathcal{R}_T = 1$: the smile stays fixed in strike space, so the ATMF volatility slides along the existing smile (sticky-strike).
+\end{itemize}
+
+In the local volatility model, using the expression above,
+\begin{equation}
+    \mathcal{R}_T = 1 + \frac{1}{T}\int_0^T \frac{\mathcal{S}_t}{\mathcal{S}_T}\,dt .
+\end{equation}
+
+If the skew is constant across maturities ($\mathcal{S}_t = \mathcal{S}_T$ for all $t$),
+then $\mathcal{R}_T = 2$ for every maturity.
+
+In summary:
+\begin{quote}
+    In the local volatility model, the spot/volatility covariance is not a free parameter.
+    It is fixed by the market smile used for calibration.
+    The SSR quantifies this covariance in units of the skew.
+\end{quote}
