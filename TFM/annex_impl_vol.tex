@@ -2,7 +2,7 @@
 %   Appendix A: Implied Volatility Surface — Implementation Details
 % ----------------------------------
 
-\section{Implied Volatility Surface - Implementation Details}
+\chapter{Implied Volatility Surface - Implementation Details}
 \label{app:impl_vol}
 
 This appendix describes the pipeline used to construct the SPY implied volatility
@@ -12,7 +12,7 @@ All code lives in \href{https://github.com/M315/TFM/tree/main/scripts/impl_vol/}
 market snapshot dated 2026-04-30.
 
 % ----------------------------------
-\subsection{Data}
+\section{Data}
 
 SPY option chains are fetched via the \texttt{yfinance} library.
 We restrict to maturities $4\,\text{wk} \leq T \leq 1\,\text{yr}$ and require a minimum
@@ -24,7 +24,7 @@ Data for calls and puts are cached separately as \textit{parquet} files so that 
 subsequent computations are fully reproducible without network access.
 
 % ----------------------------------
-\subsection{Risk-free rate}
+\section{Risk-free rate}
 
 The risk-free rate is taken from the US Treasury par yield curve published daily
 by the US Department of the Treasury.
@@ -53,7 +53,7 @@ A better discounting rate for SPY options would be the overnight index swap (OIS
 but for our purposes the difference is not enough to justify the additional complexity of fetching and processing OIS data.
 
 % ----------------------------------
-\subsection{Dividend yield calibration}
+\section{Dividend yield calibration}
 \label{subsec:div_yield_cal}
 
 SPY pays dividends quarterly, so any pricing formula must account for the dividend yield $q$.
@@ -176,7 +176,7 @@ out-of-the-money quotes only.
 \end{figure}
 
 % ----------------------------------
-\subsection{OTM composite construction}
+\section{OTM composite construction}
 
 Once $r$ and $q$ are consistent with market prices, the composite surface is formed
 by taking out-of-the-money options only:
@@ -217,7 +217,7 @@ $0.75 \leq K/S \leq 1.25$ and keeping only the OTM leg for each option type.
 \end{figure}
 
 % ----------------------------------
-\subsection{Expiration selection}
+\section{Expiration selection}
 
 SPY has a dense cluster of weekly expirations in the short end (roughly 1-8 weeks).
 Including all available expirations would over-weight this region and produce a surface
@@ -230,7 +230,7 @@ is approximately uniform in $\log T$, which is the natural scale on which the
 term structure of volatility varies.
 
 % ----------------------------------
-\subsection{Summary of assumptions}
+\section{Summary of assumptions}
 
 For reference, the key modelling assumptions are:
 \begin{itemize}

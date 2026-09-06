@@ -5,7 +5,7 @@
 %   - Stochastic differential equations (SDEs
 % ----------------------------------
 
-\section{Stochastic calculus}
+\chapter{Stochastic calculus}
 
 To model the dynamics of a financial asset's value,
 an ordinary differential equation of the form
@@ -27,7 +27,7 @@ thus a key step is to give rigorous meaning to the stochastic integral $\int \si
 The most well known process that has a well defined stochastic integral is the Wiener process or Brownian motion,
 this stochastic integral is known as the Ito integral and will allow us to have the machinery to study SDEs and thus model the dynamics of financial assets.
 
-\subsection{Ito's integral}
+\section{Ito's integral}
 
 \begin{definition}\label{def:ito_integral_reqs}
     Let $\mathcal{V} = \mathcal{V}(S, T)$ the class of functions
@@ -86,7 +86,7 @@ luckily the Itô integral can be extended to a broader class by relaxing the las
 will call this class of functions $\mathcal{W}$.
 Notice that the class $\mathcal{W}$ does contain all continuous functions.
 
-\subsection{Ito's formula}
+\section{Ito's formula}
 
 Having defined the Ito integral,
 would be interesting to have a way to easily compute stochastic integrals without having to compute the limit of elementary functions,
@@ -189,7 +189,7 @@ The formula can be extended to multiple dimensions.
     \end{equation*}
 \end{theorem}
 
-\subsection{Stochastic differential equations}
+\section{Stochastic differential equations}
 
 A \textbf{stochastic differential equation} (SDE) is an equation of the form
 \begin{equation}\label{eq:sde_general}
@@ -216,7 +216,7 @@ gives sufficient conditions for a solution to exist and be unique.
 
 We close with two fundamental examples, both following \cite[Ch.~5]{oksendal_sde}.
 
-\subsubsection{Example: Geometric Brownian motion}
+\subsection{Example: Geometric Brownian motion}
 
 Let $\mu, \sigma \in \R$ with $\sigma \neq 0$ and $S_0 > 0$.
 Consider the SDE
@@ -240,7 +240,7 @@ so the unique solution is
     S_t = S_0 \exp\!\left[\left(\mu - \frac{\sigma^2}{2}\right) t + \sigma B_t\right].
 \end{equation}
 
-\subsubsection{Example: Ornstein-Uhlenbeck process}
+\subsection{Example: Ornstein-Uhlenbeck process}
 
 Let $\theta, \sigma > 0$ and $\mu \in \R$.
 Consider the SDE

@@ -6,7 +6,7 @@
 %   - Solving the Black-Scholes PDE (BS Formula)
 % ----------------------------------
 
-\section{Black-Scholes}
+\chapter{Black-Scholes}
 
 Black-Scholes is a mathematical model for pricing options.
 Although many other models have been developed since,
@@ -19,7 +19,7 @@ whether to hedge financial risk, this is to protect against adverse price moveme
 or to bet on specific views, especially when it's difficult to take a position in the underlying asset.
 So being able to price them and justify the price is key for the market to function.
 
-\subsection{Replication and arbitrage}
+\section{Replication and arbitrage}
 
 One of the most important concepts in modern finance is the so called \textit{law of one price}.
 The idea is that if two financial assets have exactly the same payoffs in all possible scenarios,
@@ -52,7 +52,7 @@ For a further discussion on replication, and its applications in finance, we rec
 We will show two examples of static replication from \cite{steele_stochastic}
 that will be useful to understand the Black-Scholes model.
 
-\subsubsection{Example: Forward contract}
+\subsection{Example: Forward contract}
 
 Assume that there is an agent that borrows and lends money at a continuously compounded rate $r$, known as the \textbf{risk-free rate}.
 This means that if we borrow $1 \$$ at time $t = 0$,
@@ -75,7 +75,7 @@ or there is an arbitrage opportunity.
 We have found the price of the forward contract by replicating its cashflows, using the underlying asset and the risk-free rate,
 plus arguing that there should not be an arbitrage opportunity.
 
-\subsubsection{Example: Put-Call parity}
+\subsection{Example: Put-Call parity}
 
 \begin{definition}[European call option]
     An \textbf{European call option} is a financial contract that gives the holder the right,
@@ -151,7 +151,7 @@ as we have seen this is the payoff of a forward contract, which means that at ti
 this formula is called \textit{put-call parity} and illustrates the relationship between the price of a call and a put option.
 
 
-\subsection{The Black-Scholes model}\label{subsec:black_scholes_model}
+\section{The Black-Scholes model}\label{subsec:black_scholes_model}
 
 The Black-Scholes model is a mathematical model for pricing options,
 that is based on replicating the payoffs of the option dynamically using the underlying asset and a risk-free rate bond.
@@ -241,7 +241,7 @@ with terminal condition
 which is the \textbf{Black-Scholes PDE}.
 
 
-\subsection{Pricing - Solving the Black-Scholes PDE}\label{sec:bs_pricing}
+\section{Pricing - Solving the Black-Scholes PDE}\label{sec:bs_pricing}
 
 There is an analytical solution to the Black-Scholes PDE.
 Our derivation follows the approach of \cite[Ch. 11.4]{steele_stochastic},
@@ -451,7 +451,7 @@ and, of course
 \end{equation*}
 
 
-\subsection{Calibration - Implied volatility}
+\section{Calibration - Implied volatility}
 
 The Black-Scholes formula \eqref{eq:black_scholes_formula} gives the call price as a function of
 market observables $(t, S, r)$, contract parameters $(K, T)$, and the single volatility parameter $\sigma$.
@@ -537,7 +537,7 @@ starting from an initial guess $\sigma^{(0)} > 0$, one iterates
 \end{equation}
 until $\lvert C_{\mathrm{BS}}(\sigma^{(n)}) - C^{\mathrm{mkt}}\rvert < \varepsilon$.
 
-\subsubsection{The implied volatility surface}
+\subsection{The implied volatility surface}
 
 If Black-Scholes with a single $\sigma$ perfectly described the market,
 every option on the same underlying would yield the same implied volatility.

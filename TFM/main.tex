@@ -1,42 +1,171 @@
 %=============================================================================
 %
-%	TFM
+%	TFM - Universidad Nacional de Educacion a Distancia
+%
+%	Layout based on the UNED "Plantilla-TFM" template, which in turn is
+%	based on the University of Bristol thesis template:
+%	https://www.overleaf.com/latex/templates/university-of-bristol-thesis-template
 %
 %=============================================================================
 
+\RequirePackage[l2tabu]{nag}		% warns for obsolete LaTeX usage
+
+% Memoir is a flexible class for reports, articles and books. Manual at:
+% http://www.ctan.org/tex-archive/macros/latex/contrib/memoir/
+\documentclass[a4paper,11pt,leqno,openbib]{memoir}	% add 'draft' to turn the draft option on
+
+
+%=============================================================================
+%	Metadata
+%=============================================================================
+
+\usepackage{datetime}
+\usepackage{ifpdf}
+\ifpdf
+\pdfinfo{
+   /Author (Marc Jovani Bertran)
+   /Title (Calibration of Local Volatility Models)
+   /Keywords (Local volatility; Dupire equation; Inverse problems; Tikhonov regularization)
+   /CreationDate (D:\pdfdate)
+}
+\fi
+
+% Only active when the class option 'draft' is set.
+\ifdraftdoc
+	\usepackage{draftwatermark}
+	\SetWatermarkScale{0.3}
+	\SetWatermarkText{\bfseries Draft: \today}
+\fi
+
+
+%=============================================================================
+%	Page layout
+%=============================================================================
+
+% Declare figure/table as a subfloat.
+\newsubfloat{figure}
+\newsubfloat{table}
+
+% Page layout for A4 paper, see the memoir manual.
+\settrimmedsize{297mm}{210mm}{*}
+\setlength{\trimtop}{0pt}
+\setlength{\trimedge}{\stockwidth}
+\addtolength{\trimedge}{-\paperwidth}
+\settypeblocksize{634pt}{448.13pt}{*}
+\setulmargins{4cm}{*}{*}
+\setlrmargins{*}{*}{1.5}
+\setmarginnotes{17pt}{51pt}{\onelineskip}
+\setheadfoot{\onelineskip}{2\onelineskip}
+\setheaderspaces{*}{2\onelineskip}{*}
+\checkandfixthelayout
+
+\frenchspacing
+
+% Font with math support: New Century Schoolbook.
+\usepackage{fouriernc}
+\usepackage[T1]{fontenc}
+
+% 1.5 line spacing for the text, single spacing for captions.
+\OnehalfSpacing
+
+% Sets numbering division level.
+\setsecnumdepth{subsection}
+\maxsecnumdepth{subsubsection}
+
+% Reduce widows (last line of a paragraph at the start of a page) and orphans
+% (first line of a paragraph at the end of a page).
+\widowpenalty=1000
+\clubpenalty=1000
+
+
+%=============================================================================
+%	Chapter and page style
+%=============================================================================
+
+% Chapter style, taken from Lars Madsen's Memoir Chapter Styles document.
+\usepackage{calc,soul}
+\makeatletter
+\newlength\dlf@normtxtw
+\setlength\dlf@normtxtw{\textwidth}
+\newsavebox{\feline@chapter}
+\newcommand\feline@chapter@marker[1][4cm]{%
+	\sbox\feline@chapter{%
+		\resizebox{!}{#1}{\fboxsep=1pt%
+			\colorbox{gray}{\color{white}\thechapter}%
+		}}%
+		\rotatebox{90}{%
+			\resizebox{%
+				\heightof{\usebox{\feline@chapter}}+\depthof{\usebox{\feline@chapter}}}%
+			{!}{\scshape\so\@chapapp}}\quad%
+		\raisebox{\depthof{\usebox{\feline@chapter}}}{\usebox{\feline@chapter}}%
+}
+\newcommand\feline@chm[1][4cm]{%
+	\sbox\feline@chapter{\feline@chapter@marker[#1]}%
+	\makebox[0pt][c]{% aka \rlap
+		\makebox[1cm][r]{\usebox\feline@chapter}%
+	}}
+\makechapterstyle{daleifmodif}{
+	\renewcommand\chapnamefont{\normalfont\Large\scshape\raggedleft\so}
+	\renewcommand\chaptitlefont{\normalfont\Large\bfseries\scshape}
+	\renewcommand\chapternamenum{} \renewcommand\printchaptername{}
+	\renewcommand\printchapternum{\null\hfill\feline@chm[2.5cm]\par}
+	\renewcommand\afterchapternum{\par\vskip\midchapskip}
+	\renewcommand\printchaptertitle[1]{\color{gray}\chaptitlefont\raggedleft ##1\par}
+}
+\makeatother
+\chapterstyle{daleifmodif}
+
+% Pages numbered at the bottom centre, running heads on the outer side.
+\makepagestyle{myvf}
+\makeoddfoot{myvf}{}{\thepage}{}
+\makeevenfoot{myvf}{}{\thepage}{}
+\makeheadrule{myvf}{\textwidth}{\normalrulethickness}
+\makeevenhead{myvf}{\small\textsc{\leftmark}}{}{}
+\makeoddhead{myvf}{}{}{\small\textsc{\rightmark}}
+\pagestyle{myvf}
+
+% Fills blank pages until the next odd-numbered page, used to emulate a
+% single-sided frontmatter.
+\newcommand{\clearemptydoublepage}{\newpage{\thispagestyle{empty}\cleardoublepage}}
+
+% Creates the indexes for the table of contents, figures, tables and index.
+\makeindex
 
 
 %=============================================================================
 %	Packages
 %=============================================================================
 
-\documentclass[11pt, a4paper]{article}		% document format
-\usepackage{graphicx}						% package to insert graphics
-\graphicspath{{figures/}}
-\usepackage[english]{babel}
-\usepackage[utf8]{inputenc}			% this enables all unicode characters
+\usepackage[english]{babel}		% hyphenation and fixed names
+\usepackage[utf8]{inputenc}		% enables unicode characters in the source
+
 \usepackage{
   amsmath,
   amsfonts,
   amssymb
-} 	                            % maths packages
+}                               % maths packages
+\usepackage{amsthm}             % theorem styles
 \usepackage{dsfont}             % extend math symbols
-\usepackage{amsthm}							% theorem styles
-\usepackage{fancyhdr}						% package for headers, foot and margin notes
-\usepackage{enumitem}						% allows to change the enumeration format in line
+\usepackage{graphicx}           % package to insert graphics
+\graphicspath{{figures/}{img/}}
 \usepackage{booktabs}           % rules for tables (\toprule, \midrule, \bottomrule)
+\usepackage{longtable,rotating} % long and rotated tables
+\usepackage{float}              % helps to place figures, tables, etc.
+\usepackage{rotfloat}           % rotating float environments
+\usepackage{colortbl}           % coloured tables
+\usepackage{color}              % coloured text and background
+\usepackage{enumitem}           % allows to change the enumeration format in line
+\usepackage{verbatim}           % pre-formatted text insertion
+\usepackage{microtype}          % makes the pdf look better
+\usepackage{url}                % url commands
+\usepackage[square,numbers,
+            sort&compress]{natbib}	% bibliography commands
 \usepackage{tikz}               % package for drawing graphs
-\usepackage{hyperref}           % package for hyperlinks
-\usepackage{algpseudocode}      % package for algorithms
-\usepackage[
-  top=2cm,
-  bottom=2cm,
-  left=3cm,
-  right=3cm,
-  headheight=17pt, % as per the warning by fancyhdr
-  includehead,includefoot,
-  heightrounded, % to avoid spurious underfull messages
-]{geometry}
+\usetikzlibrary{arrows,shapes,automata,backgrounds,petri,topaths}
+\usepackage[colorlinks=true,
+            allcolors=black]{hyperref}	% hyperlinks in cross references
+\hypersetup{colorlinks,linkcolor=,urlcolor=magenta}
+\usepackage{memhfixc}           % must be loaded after hyperref on memoir
 
 
 %=============================================================================
@@ -51,6 +180,47 @@
 \newcommand{\F}{\mathcal{F}}
 \newcommand{\Q}{\mathcal{Q}}
 
+\newcommand{\keywords}[1]{\par\noindent{\small{\bfseries Keywords:} #1}}
+
+% Caption style of the template.
+\makeatletter
+\newcommand{\mycaption}[2][\@empty]{
+	\captionnamefont{\scshape}
+	\changecaptionwidth
+	\captionwidth{0.9\linewidth}
+	\captiondelim{.\:}
+	\indentcaption{0.75cm}
+	\captionstyle[\centering]{}
+	\setlength{\belowcaptionskip}{10pt}
+	\ifx \@empty#1 \caption{#2}\else \caption[#1]{#2}
+}
+\newcommand{\mysubcaption}[2][\@empty]{
+	\subcaptionsize{\small}
+	\hangsubcaption
+	\subcaptionlabelfont{\rmfamily}
+	\sidecapstyle{\raggedright}
+	\setlength{\belowcaptionskip}{10pt}
+	\ifx \@empty#1 \subcaption{#2}\else \subcaption[#1]{#2}
+}
+\makeatother
+
+% A drop capital for the first character of a chapter.
+\usepackage{lettrine}
+\newcommand{\initial}[1]{%
+	\lettrine[lines=3,lhang=0.33,nindent=0em]{
+		\color{gray}
+		{\textsc{#1}}}{}}
+
+% Encircled text, used by \let\textcircled=\pgftextcircled below.
+\newcommand{\pgftextcircled}[1]{
+    \setbox0=\hbox{#1}%
+    \dimen0\wd0%
+    \divide\dimen0 by 2%
+    \begin{tikzpicture}[baseline=(a.base)]%
+        \useasboundingbox (-\the\dimen0,0pt) rectangle (\the\dimen0,1pt);
+        \node[circle,draw,outer sep=0pt,inner sep=0.1ex] (a) {#1};
+    \end{tikzpicture}
+}
 
 
 %=============================================================================
@@ -58,48 +228,13 @@
 %=============================================================================
 
 \theoremstyle{plain}
-\newtheorem{exercise}{Exercise}
-\newtheorem{algorithm*}{Algorithm}
-
-\theoremstyle{definition}
-\newtheorem{solution}{Solution}[exercise]
-\renewcommand*{\thesolution}{\theexercise.\alph{solution}}	% Make solution instances enumerate with number of exercise and letter of solution
-
-\newtheorem{theorem}{Theorem}[section]
-
-\theoremstyle{definition}
-\newtheorem{definition}{Definition}[section]
-
+\newtheorem{theorem}{Theorem}[chapter]
 \newtheorem{lemma}[theorem]{Lemma}
 \newtheorem{proposition}[theorem]{Proposition}
 \newtheorem{corollary}[theorem]{Corollary}
 
-
-%============================================================================
-%	Pagestyle
-%=============================================================================
-
-\pagestyle{fancy}		% As we use the fancyhdr pkg need the fancy pagestyle, for more information:
-						% http://tug.ctan.org/tex-archive/macros/latex/contrib/fancyhdr/fancyhdr.pdf
-
-
-%\topmargin 0 pt
-%\oddsidemargin 0 pt
-%\evensidemargin 0 pt
-%\marginparwidth 0 pt
-
-
-%\textheight 25cm
-%\textwidth 400 pt
-%\advance\textheight by \topskip
-
-%\parindent 0pt
-%\parskip 5mm plus 1mm minus 1mm
-
-%\fancyhead[C]{Report I}					                % Central header
-\fancyhead[L]{TFM}   										% Left header
-\fancyhead[R]{Marc Jovani Bertran}						    % Right header
-
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[chapter]
 
 
 %=============================================================================
@@ -107,16 +242,47 @@
 %=============================================================================
 
 \begin{document}
-	% \include{1_introduction}
-	\include{2_preliminaries}
-	\include{3_ito_and_sde}
-	\include{4_black_scholes}
-  \include{5_arbitrage}
-  \include{6_local_vol}
-  \include{7_cal_local_vol}
-  \appendix
-  \include{annex_impl_vol}
-  \include{annex_local_vol}
-  \bibliographystyle{plain}
-  \bibliography{references}
+
+\frontmatter
+\pagenumbering{roman}
+
+\include{0_title_page}
+\include{0_abstract}
+\include{0_acknowledgements}
+
+
+\maxtocdepth{subsection}
+\tableofcontents*
+\addtocontents{toc}{\par\nobreak \mbox{}\hfill{\bfseries Page}\par\nobreak}
+\clearpage
+
+\listoftables
+\addtocontents{lot}{\par\nobreak\textbf{{\scshape Table} \hfill Page}\par\nobreak}
+\clearpage
+
+\listoffigures
+\addtocontents{lof}{\par\nobreak\textbf{{\scshape Figure} \hfill Page}\par\nobreak}
+\clearpage
+
+\mainmatter
+\let\textcircled=\pgftextcircled
+\include{1_introduction}
+\include{2_preliminaries}
+\include{3_ito_and_sde}
+\include{4_black_scholes}
+\include{5_arbitrage}
+\include{6_local_vol}
+\include{7_cal_local_vol}
+\include{8_conclusions}
+
+\appendix
+\include{annex_impl_vol}
+\include{annex_local_vol}
+
+\backmatter
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+% Add index
+%\printindex
 \end{document}

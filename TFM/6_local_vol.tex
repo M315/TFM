@@ -12,11 +12,11 @@
 %     - Calibration
 % ----------------------------------
 
-\section{Local Volatility Model}
+\chapter{Local Volatility Model}
 
 We are going to introduce the Local Volatility Model mainly following \cite{bergomi_stochastic_vol}.
 
-\subsection{Model description}
+\section{Model description}
 
 The \textbf{local volatility model} is the simplest and most widely used volatility model in derivatives pricing.
 It extends the Black-Scholes framework by allowing the instantaneous volatility to be a deterministic function of both time and the spot price of the underlying asset,
@@ -36,7 +36,7 @@ with the deterministic volatility function replacing the constant volatility
         - \frac{1}{2} \sigma^2(t, S_t) S_t^2 \frac{\partial^2 f}{\partial S^2},
 \end{equation*}
 
-\subsubsection{Market model}
+\subsection{Market model}
 
 A market model is a valuation model that includes vanilla options as part of the underlying,
 this means we are assuming that when hedging a derivative,
@@ -48,14 +48,14 @@ Thus vanilla options under a market model are exactly priced.
 The local volatility model is a market model,
 since it is calibrated to match the vanilla option prices observed in the market
 
-\subsection{Dupire Equation}
+\section{Dupire Equation}
 
 The Dupire equation, introduced in \cite{dupire_pricing_smile},
 expresses the local volatility function $\sigma(t, S)$ directly in terms of derivatives
 of call option prices with respect to strike and maturity.
 We present the derivation following \cite{bergomi_stochastic_vol}.
 
-\subsubsection{Derivation}
+\subsection{Derivation}
 
 Consider the following general diffusive dynamics for $S_t$:
 \begin{equation}\label{eq:log-normal_diffusion}
@@ -194,7 +194,7 @@ and evaluating at $K = S$, $T = t$ gives the \textbf{Dupire formula}:
 Given the full surface of observed call prices $C(K,T)$,
 equation~\eqref{eq:dupire_formula} uniquely determines the local volatility function.
 
-\subsubsection{Forward equation}
+\subsection{Forward equation}
 
 Rearranging \eqref{eq:dupire_general} for a known local volatility function $\sigma(t, S)$
 yields the \textbf{Dupire forward equation}:
@@ -208,7 +208,7 @@ the forward equation propagates forward in $T$ with initial condition
 $C(K, T = 0) = (S_0 - K)^+$,
 producing prices for a fixed initial spot $S_0$ but all strikes $K$ and maturities $T$ simultaneously.
 
-\subsubsection{No-arbitrage conditions}\label{sec:no_arbitrage}
+\subsection{No-arbitrage conditions}\label{sec:no_arbitrage}
 
 For the Dupire formula~\eqref{eq:dupire_formula} to yield a positive local variance,
 both the numerator and denominator of~\eqref{eq:dupire_general} must be strictly positive,
@@ -247,7 +247,7 @@ so any arbitrage-free surface admits a local volatility.
 In particular the steep skews observed at short maturities on equity indices
 are no evidence that jumps are needed to produce them \cite{bergomi_stochastic_vol}.
 
-\subsection{From local volatilities to implied volatilities}\label{sec:lv_to_iv}
+\section{From local volatilities to implied volatilities}\label{sec:lv_to_iv}
 
 The Dupire formula \eqref{eq:dupire_formula} gets the local volatility from the option prices.
 In the opposite direction,
@@ -258,7 +258,7 @@ more importantly, how that smile moves.
 We collect here the results we use later,
 following \cite{bergomi_stochastic_vol} and \cite{derman_vol_smile}.
 
-\subsubsection{Implied volatility as an average of local volatility}
+\subsection{Implied volatility as an average of local volatility}
 
 Let $C_{\hat{\sigma}}$ be the Black-Scholes price of a call option with strike $K$ and maturity $T$
 computed with a constant volatility equal to its implied volatility $\hat{\sigma}(K,T)$
@@ -294,7 +294,7 @@ but it gives a the intuition that an implied volatility is not a local volatilit
 but a smoothed version of it over the region of $(t, S)$ where the option carries gamma.
 The smile is therefore always flatter than the local volatility surface that generates it.
 
-\subsubsection{The rule of two}
+\subsection{The rule of two}
 
 A central result of the local volatility model concerns the relationship
 between the skew of the local volatility function and the skew of the implied volatility smile.
@@ -326,7 +326,7 @@ Thus, for a constant local volatility skew, the implied skew is half the local s
 The averaging inherent in the mapping from local to implied volatilities
 smooths out the local volatility surface, making the implied smile flatter.
 
-\subsubsection{Smile dynamics and the skew stickiness ratio}
+\subsection{Smile dynamics and the skew stickiness ratio}
 
 In the local volatility model, the smile's dynamics are fully determined by the smile itself.
 There is no freedom to choose how implied volatilities move when the spot moves.
