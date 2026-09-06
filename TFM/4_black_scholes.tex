@@ -327,21 +327,21 @@ see \cite[Ch. 11.4]{steele_stochastic}.
 Using the initial condition we get,
 \begin{equation*}
     v(x, \tau)
-        = \int^{\infty}_{0} K e^{-\alpha y} (e^y - 1) k(\frac{\sigma^2}{2}; \tau, x- y)  dy,
+        = \int^{\infty}_{0} K e^{-\alpha y} (e^y - 1) k\left(\frac{\sigma^2}{2}; \tau, x- y\right)  dy,
         % = \frac{1}{2\sqrt{\pi \sigma^2 \tau}} \int^{\infty}_{0} K e^{-\alpha x} (e^x - 1) e^{-\frac{(x- y)^2}{4 \sigma^2 \tau}} dy
 \end{equation*}
 this leaves us with two integrals
 \begin{equation*}
 \begin{aligned}
-    & I_1 = K \int^{\infty}_{0} e^{(1 - \alpha) y} k(\frac{\sigma^2}{2}; \tau, x- y)  dy, \\
-    & I_2 = - K \int^{\infty}_{0} e^{-\alpha y} k(\frac{\sigma^2}{2}; \tau, x- y)  dy, \\
+    & I_1 = K \int^{\infty}_{0} e^{(1 - \alpha) y} k\left(\frac{\sigma^2}{2}; \tau, x- y\right)  dy, \\
+    & I_2 = - K \int^{\infty}_{0} e^{-\alpha y} k\left(\frac{\sigma^2}{2}; \tau, x- y\right)  dy, \\
 \end{aligned}
 \end{equation*}
 if we make a change of variable, $s = x - y$, then
 \begin{equation*}
 \begin{aligned}
-    & I_1 = K e^{(1 - \alpha) x} \int^{x}_{-\infty} e^{-(1 - \alpha) s} k(\frac{\sigma^2}{2}; \tau, s)  ds, \\
-    & I_2 = - K e^{-\alpha x} \int^{x}_{-\infty} e^{\alpha s} k(\frac{\sigma^2}{2}; \tau, s)  ds. \\
+    & I_1 = K e^{(1 - \alpha) x} \int^{x}_{-\infty} e^{-(1 - \alpha) s} k\left(\frac{\sigma^2}{2}; \tau, s\right)  ds, \\
+    & I_2 = - K e^{-\alpha x} \int^{x}_{-\infty} e^{\alpha s} k\left(\frac{\sigma^2}{2}; \tau, s\right)  ds. \\
 \end{aligned}
 \end{equation*}
 
@@ -354,7 +354,7 @@ whose proof is a standard completion of the square.
     \end{equation*}
     Then for any $a, b \in \R$ and $\sigma, \tau > 0$,
     \begin{equation}\label{eq:heat_kernel_identity}
-        \int^{a}_{-\infty} k(\frac{\sigma^2}{2}; \tau, s) e^{-b s} ds
+        \int^{a}_{-\infty} k\left(\frac{\sigma^2}{2}; \tau, s\right) e^{-b s} ds
             = e^{\frac{b^2 \sigma^2 \tau}{2}} \Phi \left(\frac{a}{\sigma \sqrt{\tau}} + b \sigma \sqrt{\tau}\right).
     \end{equation}
 \end{lemma}
@@ -367,14 +367,14 @@ whose proof is a standard completion of the square.
     so pulling out the constant factor and applying the change of variable $u = (s + b \sigma^2 \tau)/(\sigma \sqrt{\tau})$,
     \begin{equation*}
     \begin{aligned}
-        \int^{a}_{-\infty} k(\tfrac{\sigma^2}{2}; \tau, s) e^{-b s} ds
+        \int^{a}_{-\infty} k\left(\tfrac{\sigma^2}{2}; \tau, s\right) e^{-b s} ds
             & = e^{\frac{b^2 \sigma^2 \tau}{2}} \int^{a}_{-\infty} \frac{1}{\sqrt{2 \pi \sigma^2 \tau}} \exp\left( -\frac{(s + b \sigma^2 \tau)^2}{2 \sigma^2 \tau} \right) ds \\
             & = e^{\frac{b^2 \sigma^2 \tau}{2}} \int^{\frac{a + b \sigma^2 \tau}{\sigma \sqrt{\tau}}}_{-\infty} \frac{1}{\sqrt{2 \pi}} e^{-u^2/2} du
             = e^{\frac{b^2 \sigma^2 \tau}{2}} \Phi \left( \frac{a}{\sigma \sqrt{\tau}} + b \sigma \sqrt{\tau} \right).
     \end{aligned}
     \end{equation*}
 \end{proof}
-Applying Lemma \ref{lem:heat_kernel_identity} to $I_1$ (with $a = x$, $b = -(1 - \alpha)$) and to $I_2$ (with $a = x$, $b = \alpha$),
+Applying Lemma \ref{lem:heat_kernel_identity} to $I_1$ (with $a = x$, $b = 1 - \alpha$) and to $I_2$ (with $a = x$, $b = -\alpha$),
 and substituting back to $u = e^{\alpha x + \beta \tau} v$,
 we get
 \begin{equation*}
