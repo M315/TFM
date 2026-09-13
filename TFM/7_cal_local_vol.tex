@@ -9,6 +9,7 @@
 % ----------------------------------
 
 \chapter{Calibration of Local Volatility}
+\label{cha:cal_local_vol}
 
 The local volatility model must be calibrated to market option prices to be usable.
 Given quoted call prices $C^*(K_i, T_j)$ for a finite set of strikes and maturities,
@@ -35,7 +36,7 @@ but PDE theory suggests that that the coefficient $\sigma$ should live in a more
 This arises the problem, where the solution is smoother than the coefficient.
 
 
-\section{Change of variable - log-moneyness}
+\section{Change of variable - log-moneyness}\label{sec:change_variable}
 
 Similar to what we did in Section~\ref{sec:bs_pricing} for the Black-Scholes PDE,
 we change variables to log-moneyness
@@ -351,7 +352,7 @@ In \cite{egger2005tikhonov} they mention that after testing across the noise lev
 the choice $\tau = 1.5$ could be met at typical values $\beta \sim 10^{-2}\delta$.
 For exact data (i.e. no noise, $\delta = 0$) a single fixed $\beta$ is used.
 
-\section{Variational forms and discretization}
+\section{Variational forms and discretization}\label{sec:variational_forms}
 
 The forward PDE \eqref{eq:inverse_pde_1} is discretized in space with
 $P_1$ finite elements on a mesh of $[-M, M]$ and in time with the
@@ -636,25 +637,37 @@ specially in the wings where the data is weak and the prior dominates the soluti
 
 \section{Numerical experiment - a local volatility surface from market data}\label{sec:market_surface}
 
-Examples 1 and 2 use synthetic data and a coefficient that is constant in time. We now
-calibrate a full surface $a(y,\tau)$ from real market quotes. This goes past the setting of
-Section~\ref{sec:convergence_rates}, where the rate theory assumes a time independent
-coefficient: here the unknown is genuinely time dependent, so the surface fit is a numerical
-extension rather than a covered case.
+Examples 1 and 2 use synthetic data and a time independent coefficient $a^\dagger$.
+We now try to calibrate a full surface $a(y,\tau)$ from real market quotes, of the S\&P 500 index,
+as we did with implied volatility.
+This goes past the results of Section \ref{sec:convergence_rates},
+where the rate theory assumes a time independent coefficient,
+here the unknown is genuinely time dependent,
+so the surface fit is a numerical extension rather than a covered case,
+we have not proved convergence rates for this setting.
 
-The data are SPY European option quotes from 30 April 2026, with spot $S_0 = 720.65$. We use
-nine expirations, with maturities $\tau$ from $0.10$ to $0.88$ years. For each expiration the
-risk free rate, the dividend yield and the implied volatility come from the pipeline of
-Appendix~\ref{app:impl_vol}: the Treasury curve for $r$, put call parity for $q$, and the out
-of the money composite for the smile. Each smile is restricted to the moneyness band
-$0.8 \le K/S_0 \le 1.2$, where the quotes are liquid. We keep only expirations with at least
-twenty five strikes in this band: a sparser expiration is under-determined, and when it sits a
-few days from a well-populated one it contributes a redundant thin slice that the fit cannot
-resolve and that simply relaxes to a noisy prior.
+Like in the implied volatility calibration of Section \ref{sec:impl_vol_surface},
+the data are SPY European option quotes from 30 April 2026,
+with spot $S_0 = 720.65$.
+We use eleven expirations,
+with maturities $\tau$ from $0.10$ to $0.88$ years.
+For each expiration the risk free rate,
+the dividend yield and the implied volatility come from the pipeline of Appendix \ref{app:impl_vol},
+the Treasury curve for $r$,
+put call parity for $q$,
+and the out of the money composite for the smile.
+Each smile is restricted to the moneyness band $0.8 \le K/S_0 \le 1.2$,
+where the quotes are more liquid.
+We keep only expirations with at least twenty five strikes in this band,
+a sparser expiration is under-determined.
+We also drop two expirations that fall within two weeks of a kept one,
+30 August and 31 December 2026,
+whose slice would duplicate its neighbour rather than add information.
 
-The surface is held as one spatial slice per maturity, which is the
-parametrization~\eqref{eq:coefficient_slices} of Section~\ref{sec:time_dependent_a}: we do not
-fit the maturities one at a time nor interpolate between their smiles. The forward equation is
+The surface is held as one spatial slice per maturity,
+which is the parametrization \eqref{eq:coefficient_slices} of Section \ref{sec:time_dependent_a},
+we do not fit the maturities one at a time nor interpolate between their smiles.
+The forward equation is
 marched once from $0$ to the last maturity, the coefficient taking the value $a_k$ on the $k$th
 interval, and the whole time trajectory of the solution is kept and read off at each maturity.
 Every observed price is therefore a sample of one and the same evolving solution, and the
@@ -682,14 +695,16 @@ This agrees with the smile at the money and doubles its skew there, consistent
 with~\eqref{eq:factor_two}; outside the band it is flattened. Interest and dividend enter as
 piecewise constant forward rates recovered from the zero rates.
 
-Figure~\ref{fig:egger_surface} shows the result for $\beta_y = 0.1$ and $\beta_\tau = 1$. The
+Figures~\ref{fig:egger_surface} to~\ref{fig:egger_reprice} show the result for
+$\beta_y = 0.1$ and $\beta_\tau = 1$. The
 recovered surface has the shape one expects: a pronounced negative skew, with local volatility
-close to $0.15$ at the money, near $0.12$ on the upside, and rising sharply on the downside, to
-about $0.40$ at the long maturities and much steeper at the short end where the skew is
-strongest. Repricing the quotes at the calibrated surface gives a median relative error of
-$0.14\%$ across the nine maturities, with the maximum over liquid strikes staying near $1\%$ at
+running from about $0.15$ at the money at the shortest maturity to $0.23$ at the longest, near
+$0.12$ on the upside, and rising sharply on the downside, to about $0.40$ at the long
+maturities and much steeper at the short end, close to $0.95$ two tenths of log-moneyness below
+the money, where the skew is strongest. Repricing the quotes at the calibrated surface gives a median relative error of
+$0.13\%$ across the eleven maturities, with the maximum over liquid strikes staying below $1\%$ at
 every expiration. This is markedly tighter than the naive prior $a^* = \tfrac12\sigma_{\mathrm{iv}}^2$,
-which gives a median of $0.32\%$ and maxima near $2\%$: that prior anchors the skew at half its
+which gives a median of $0.20\%$ and maxima above $2\%$: that prior anchors the skew at half its
 correct value, so wherever the quotes carry little information the $H^1$ penalty pulls the
 reconstruction off the prices, and the theory-consistent prior~\eqref{eq:bbf_inversion} removes
 the bias. As in the synthetic examples, the surface is well determined near the money and
@@ -727,123 +742,146 @@ One feature of the fit points to the next section. Near the money the recovered 
 volatility is visibly steeper in strike than the market implied volatility plotted on the same
 axes. This is a definite relation between the two skews, which we make precise next following
 Derman and Bergomi.
-
-\begin{figure}[h]
+\begin{figure}[h!]
     \centering
-    \includegraphics[width=\textwidth]{egger_example4_surface}
-    \caption{Local volatility surface calibrated from SPY quotes on 30 April 2026
-             ($S_0 = 720.65$, nine maturities), with $\beta_y = 0.1$ and $\beta_\tau = 1$.
-             Left: the recovered surface $\sigma(y,\tau)$ as a 3D mesh. Middle: the recovered local
-             volatility slices (solid) against each maturity's market implied volatility
-             (faint); the local volatility skew is steeper than the implied one. Right: per
-             maturity relative reprice error over liquid strikes (market price at least $0.5\%$
-             of $S_0$), median and maximum.}
+    \includegraphics[width=0.75\textwidth]{egger_example4_surface_3d}
+    \caption{Local volatility surface $\sigma(y,\tau)$ calibrated from SPY quotes on 30 April
+             2026 ($S_0 = 720.65$, eleven maturities), with $\beta_y = 0.1$ and $\beta_\tau = 1$.}
     \label{fig:egger_surface}
+\end{figure}
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.75\textwidth]{egger_example4_surface_slices}
+    \caption{Recovered local volatility slices (solid) of the surface of
+             Figure~\ref{fig:egger_surface} against each maturity's market implied volatility
+             (faint); the local volatility skew is steeper than the implied one.}
+    \label{fig:egger_slices}
+\end{figure}
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.75\textwidth]{egger_example4_surface_reprice}
+    \caption{Per maturity relative reprice error of the calibrated surface of
+             Figure~\ref{fig:egger_surface} over liquid strikes (market price at least $0.5\%$
+             of $S_0$), median and maximum.}
+    \label{fig:egger_reprice}
 \end{figure}
 
 \section{The local volatility skew and the factor of two}\label{sec:factor_two}
 
-The steeper skew seen in Figure~\ref{fig:egger_surface} is not an artefact of the
-calibration. It reflects a general relation between the two objects. The implied volatility
-$\sigma_{\mathrm{iv}}(K,\tau)$ is the single Black-Scholes number that reprices the quote at
-$(K,\tau)$, while the local volatility $\sigma_{\mathrm{loc}}(S,t)$ is the instantaneous
-diffusion coefficient the underlying feels at $(S,t)$. The former is an average of the latter
-over the paths that reach the strike, so the smile is a smoothed version of the local
-volatility and its skew is the flatter of the two. Derman makes this precise near the
-money~\cite{derman_vol_smile}.
+In Figure \ref{fig:egger_slices} we can observe that local volatility has an steeper skew than the implied one.
+This is not a consequence of the calibration,
+it is the rule of two shown in Section \ref{sec:rule_of_two}.
 
-The clean statement is the short maturity asymptotic of Berestycki, Busca and
-Florent~\cite{berestycki_busca_florent}: as $\tau \to 0$ the implied volatility is the harmonic
-average of the local volatility over the log-moneyness interval between spot and strike,
-\begin{equation}\label{eq:bbf_harmonic}
-    \frac{1}{\sigma_{\mathrm{iv}}(y,\tau)}
-      \;=\; \frac{1}{y}\int_0^y \frac{dx}{\sigma_{\mathrm{loc}}(x)} \;+\; o(1),
-    \qquad y = \log(K/S_0),
-\end{equation}
-where $\sigma_{\mathrm{loc}}(x)$ is the local volatility at log-moneyness $x$. Writing
-$\sigma_{\mathrm{loc}}(x) = \sigma_0 + \sigma_0' x + O(x^2)$ with $\sigma_0 =
-\sigma_{\mathrm{loc}}(0)$ and $\sigma_0' = \partial_y \sigma_{\mathrm{loc}}(0)$, the integrand
-is $\sigma_0^{-1}(1 - (\sigma_0'/\sigma_0)\,x) + O(x^2)$, so its average over $[0,y]$ equals
-$\sigma_0^{-1}(1 - (\sigma_0'/2\sigma_0)\,y) + O(y^2)$. Inverting~\eqref{eq:bbf_harmonic} gives
-$\sigma_{\mathrm{iv}}(y) = \sigma_0 + \tfrac12 \sigma_0'\, y + O(y^2)$, that is
-\begin{equation}\label{eq:factor_two}
+Given the relationship between local volatility and implied volatility,
+from \eqref{eq:factor_two},
+near ATM the local volatility skew is twice the implied volatility skew,
+we can rewrite it as
+\begin{equation}\label{eq:factor_two_derivative}
     \left.\partial_y \sigma_{\mathrm{loc}}\right|_{y=0}
-      \;=\; 2\,\left.\partial_y \sigma_{\mathrm{iv}}\right|_{y=0}.
+      \;=\; 2\,\left.\partial_y \sigma_{\mathrm{iv}}\right|_{y=0},
 \end{equation}
-This is Derman's factor of two: at the money the local volatility skew is twice the implied
-volatility skew. Bergomi records the same factor on the dynamic side~\cite{bergomi_stochastic_vol}:
-in a local volatility model the at-the-money implied volatility moves with the spot at twice the
-rate at which it moves with the strike, so the skew stickiness ratio equals two in the short
-maturity limit. The static and the dynamic statements are two faces of the same averaging.
+see \cite{bergomi_stochastic_vol} Chapter 2.
 
-We check~\eqref{eq:factor_two} directly on the calibrated surface. For each maturity we fit a
-quadratic to the recovered local volatility slice and to the market implied volatility smile in
-a narrow window $|y| \le 0.05$ around the money and read the slope at $y = 0$.
-Figure~\ref{fig:egger_skew} shows the two skews and their ratio. Near the money the local skew
-is about twice the implied skew, with a mean ratio of $2.15$ for maturities below three months.
-
-One objection must be met. The prior~\eqref{eq:bbf_inversion} already builds the factor of two
-into the reconstruction, so the agreement could be an echo of the prior rather than a property
-of the data. It is not. Rerunning the calibration with the naive prior
-$a^* = \tfrac12\sigma_{\mathrm{iv}}^2$, which instead biases the ratio towards one, leaves the
-short maturity ratio at $2.17$, essentially unchanged. The factor of two near the money is
-recovered from the option prices themselves and is robust to the choice of prior, which is the
-real check that the local volatility, and not just the fitted prices, is meaningful. At long
-maturities the ratio is prior sensitive, since the quotes thin out and the reconstruction leans
-on the prior there, so we do not read a reliable term structure of the ratio from it; this is
-consistent in any case with~\eqref{eq:bbf_harmonic} being a short maturity statement.
-
-\begin{figure}[h]
+To verify such relationship numerically,
+we will check \eqref{eq:factor_two_derivative} directly on the calibrated surfaces.
+For each maturity $\tau$,
+we fit a quadratic to the local volatility and to the smile in a narrow window $|y| \le 0.05$ around the ATM and read the slope at $y = 0$.
+In figure \ref{fig:egger_skew} we can see two of the eleven maturities,
+drawing from the local volatility level a line with twice the implied slope lands on the local tangent,
+which is \eqref{eq:factor_two_derivative} read off the picture.
+Table \ref{tab:egger_skew} displays the two slopes at every maturity.
+The ratio averages $2.16$ below three months,
+and stays between $2.0$ and $2.5$ over the whole term structure.
+\begin{figure}[h!]
     \centering
     \includegraphics[width=\textwidth]{egger_example5_skew}
-    \caption{The Derman factor of two on the SPY surface of Figure~\ref{fig:egger_surface}.
-             Left: the at-the-money implied volatility skew, the recovered local volatility
-             skew, and twice the implied skew. Right: the ratio of local to implied skew against
-             the reference value two. Both skews are read from a quadratic fit in the window
-             $|y| \le 0.05$.}
+    \caption{The rule of two on the SPY surface of Figure~\ref{fig:egger_surface}, at the
+             shortest maturity (left) and at three months (right). Market implied volatility
+             (dots) and recovered local volatility (solid) near the money, with the tangents at
+             $y = 0$ of the quadratic fits over the shaded window $|y| \le 0.05$. The dotted
+             line has twice the implied slope and sits on the local tangent.}
     \label{fig:egger_skew}
 \end{figure}
+\begin{table}[h!]
+    \centering
+    \begin{tabular}{c c c c c}
+        \toprule
+        expiration & $\tau$ & $\partial_y\sigma_{\mathrm{iv}}$
+                   & $\partial_y\sigma_{\mathrm{loc}}$ & ratio \\
+        \midrule
+        2026-06-05 & $0.096$ & $-0.827$ & $-1.659$ & $2.01$ \\
+        2026-06-18 & $0.132$ & $-0.718$ & $-1.558$ & $2.17$ \\
+        2026-06-30 & $0.164$ & $-0.676$ & $-1.364$ & $2.02$ \\
+        2026-07-17 & $0.211$ & $-0.637$ & $-1.504$ & $2.36$ \\
+        2026-07-31 & $0.249$ & $-0.611$ & $-1.368$ & $2.24$ \\
+        2026-08-21 & $0.307$ & $-0.572$ & $-1.328$ & $2.32$ \\
+        2026-09-18 & $0.384$ & $-0.518$ & $-1.138$ & $2.19$ \\
+        2026-09-30 & $0.416$ & $-0.522$ & $-1.171$ & $2.24$ \\
+        2026-12-18 & $0.633$ & $-0.452$ & $-1.114$ & $2.47$ \\
+        2027-01-15 & $0.710$ & $-0.423$ & $-0.919$ & $2.17$ \\
+        2027-03-19 & $0.882$ & $-0.390$ & $-0.927$ & $2.38$ \\
+        \bottomrule
+    \end{tabular}
+    \caption{
+        At the money skews of the calibrated surface of Figure~\ref{fig:egger_surface}.
+        Both slopes are the linear coefficient of a quadratic fit in $|y| \le 0.05$, one on the
+        market smile and one on the recovered local volatility slice, and the last column is
+        their ratio, the factor of two of~\eqref{eq:factor_two}.
+    }
+    \label{tab:egger_skew}
+\end{table}
 
 \section{Out of sample test: pricing between quoted maturities}\label{sec:holdout}
 
-The two constructions, the calibrated local volatility surface and the interpolated implied
-volatility surface, agree on the quoted maturities by design. They differ on a contract that
-falls between them, and that difference is the test that tells them apart. We remove one
-interior expiration from the data, the December 2026 quotes at $\tau = 0.63$, and price it out
-of sample two ways. The local volatility surface is recalibrated on the remaining eight
-maturities and the Dupire equation is propagated across the gap, so the price at $\tau = 0.63$
-is a genuine sample of the forward solution rather than an interpolation of the smile. The
-implied volatility construction interpolates the total variance $\sigma_{\mathrm{iv}}^2\tau$
-linearly in maturity at fixed log-moneyness between the bracketing expirations $\tau = 0.38$
-and $\tau = 0.88$, and reads the price off Black-Scholes.
+Both the calibrated local volatility surface and the interpolated implied volatility surface,
+agree on the price of quoted maturities by construction.
+But they differ on contracts that falls between them.
 
-Figure~\ref{fig:egger_holdout} shows the outcome. Both reproduce the held-out smile closely.
-Over the liquid strikes the median relative price error is $0.9\%$ for the implied volatility
-interpolation and $1.4\%$ for the local volatility surface, so for pricing vanilla options
-between quoted dates the interpolation is marginally the more accurate. This is expected, since
-interpolating the variance is essentially built to reproduce the smile. The two part company in
-the wings. On the upside, where call prices fall towards zero and the relative error is most
-demanding, the implied volatility interpolation reaches almost $10\%$, while the local
-volatility price stays under $5\%$, since it is tied to the forward equation rather than to a
-straight line in variance.
+To test how each method prices out of sample,
+we entirely remove one interior expiration from the data,
+the December 2026 quotes at $\tau = 0.63$,
+and price it out of sample two ways.
+The local volatility surface is calibrated on the remaining ten maturities and the Dupire equation is used to recover the prices across the gap,
+so the price at $\tau = 0.63$ is a genuine sample of the forward solution rather than an interpolation of the smile.
+On the other hand,
+the implied volatility is computed at the remaining data points,
+then we interpolate the total variance $\sigma_{\mathrm{iv}}^2\tau$ linearly in maturity at fixed log-moneyness between the two closest expirations,
+$\tau = 0.42$ and $\tau = 0.71$,
+to finally calculate the price from Black-Scholes formula.
 
-The conclusion is a measured one. For interpolating vanilla prices the two methods are
-comparable, with a slight edge to the lighter implied volatility construction near the money
-and to the local volatility surface in the wings. The case for the local volatility surface is
-not that it prices vanillas more accurately, but that it delivers a full arbitrage-free spot
-dynamics, an instantaneous volatility at every $(S,t)$, which a static implied volatility
-interpolation does not. That dynamical content, the same object behind Bergomi's skew
-stickiness of Section~\ref{sec:factor_two}, is what is needed to price path-dependent and
-forward-starting contracts, for which no single implied volatility exists to interpolate.
+Figure \ref{fig:egger_holdout} shows the outcome over the well quoted band $|y| \leq 0.15$.
+The deep ITM and OTM strikes are left out of the picture,
+deep ITM options are dominated by the intrinsic value $S_0e^{-q\tau} - Ke^{-r\tau}$,
+so they carry no volatility information,
+deep OTM are less liquid and the relative miss-price is higher due to low original price,
+the more far from the money an option is th cheaper it is.
+Both methods reproduce the excluded market prices closely,
+and neither is ever off by more than $2.0\%$ over the band.
+Over the liquid strikes the median relative price error is $0.29\%$ for the implied volatility interpolation
+and $0.75\%$ for the local volatility surface.
+The interpolation is therefore the more accurate of the two,
+this is not a surprise.
+Interpolating the total variance is built to reproduce the smile,
+it uses the two nearest expirations to interpolate and the market volatility is exact at both of them,
+whereas the local volatility surface is a function of the \emph{coefficient} of a partial differential equation,
+and it is propagated forward between the observed market points,
+so an error in $a(y,\tau)$ accumulates in the solution before it is read off as a price.
 
-\begin{figure}[h]
+Even though the implied volatility looks better on this numerical experiment,
+we should not conclude that is a better model,
+at the end of the day local volatility model is constructed under the not arbitrage premise,
+and market quotes are not always arbitrage free,
+thus reproducing the market prices is not necessarily a sign of a better model.
+\begin{figure}[h!]
     \centering
-    \includegraphics[width=\textwidth]{egger_example6_holdout}
-    \caption{Out-of-sample pricing of a held-out expiration (December 2026, $\tau = 0.63$),
-             removed from the calibration and bracketed by $\tau = 0.38$ and $\tau = 0.88$.
-             Left: the held-out market implied volatilities against the local volatility surface
-             price and the implied volatility interpolation, both converted back to implied
-             volatility. Right: relative price error over liquid strikes. The two agree near the
-             money; in the upside wing the local volatility price is the more stable.}
+    \includegraphics[width=0.8\textwidth]{egger_example6_holdout}
+    \caption{
+        Out-of-sample pricing of a held-out expiration (December 2026, $\tau = 0.63$),
+        removed from the calibration and bracketed by $\tau = 0.42$ and $\tau = 0.71$.
+        Relative price error $|C - C_{\text{mkt}}| / C_{\text{mkt}}$ over the well quoted
+        band $|y| \leq 0.15$, for the local volatility surface and for the implied volatility
+        interpolation. Neither exceeds $2.5\%$, and the interpolation is the more accurate
+        across the band.
+    }
     \label{fig:egger_holdout}
 \end{figure}

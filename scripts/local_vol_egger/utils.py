@@ -3,6 +3,7 @@ Shared helpers for the Egger & Engl (2005) calibration (legacy FEniCS / dolfin).
 """
 
 import numpy as np
+from scipy.optimize import brentq
 from scipy.stats import norm
 
 from dolfin import (
@@ -94,3 +95,12 @@ def bs_call(S0, y, r, q, sigma, tau):
     d1 = (-y + (r - q + 0.5 * sigma**2) * tau) / sqrtT
     d2 = d1 - sqrtT
     return S0 * np.exp(-q * tau) * norm.cdf(d1) - K * np.exp(-r * tau) * norm.cdf(d2)
+
+
+def implied_vol(price, S0, y, r, q, tau):
+    """Black-Scholes implied volatility of a call price, by bracketed root finding."""
+    f = lambda s: bs_call(S0, y, r, q, s, tau) - price
+    try:
+        return brentq(f, 1e-4, 5.0)
+    except ValueError:
+        return np.nan

@@ -25,11 +25,11 @@ import os
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.optimize import brentq
 from dolfin import Function, set_log_level, LogLevel
 
 from examples.example4_surface import (load_surface, build_problem, DATA_PATH,
-                                       M_TIME, OBS_MONEY_MIN, OBS_MONEY_MAX)
+                                       M_TIME, OBS_MONEY_MIN, OBS_MONEY_MAX,
+                                       FIXED_BETA_Y, FIXED_BETA_TAU)
 from optimization.surface import run as run_surface
 from optimization.surface import compute_Af_surface
 from utils import bs_call, get_array
@@ -37,15 +37,7 @@ from utils import bs_call, get_array
 set_log_level(LogLevel.ERROR)
 
 DEFAULT_HOLDOUT = "2026-12-18"   # interior expiration in the widest gap (tau ~ 0.63)
-
-
-def implied_vol(price, S0, y, r, q, tau):
-    """Black-Scholes implied volatility of a call price, by bracketed root finding."""
-    f = lambda s: bs_call(S0, y, r, q, s, tau) - price
-    try:
-        return brentq(f, 1e-4, 5.0)
-    except ValueError:
-        return np.nan
+PLOT_Y_MAX = 0.15                # plot window: |y| <= 0.15, the well quoted part of the band
 
 
 def iv_interp(S0, mats_cal, hold, y_h):
@@ -72,7 +64,8 @@ def iv_interp(S0, mats_cal, hold, y_h):
     return iv_h, price, (mlo["T"], mhi["T"])
 
 
-def run(holdout=DEFAULT_HOLDOUT, beta_y=1.0, beta_tau=1.0, max_iter=200,
+def run(holdout=DEFAULT_HOLDOUT, beta_y=FIXED_BETA_Y, beta_tau=FIXED_BETA_TAU,
+        max_iter=200,
         out="egger_ex6_holdout.png", replot=False):
     S0, mats = load_surface(DATA_PATH)
 
@@ -110,9 +103,8 @@ def _report_and_plot(p, a_cal, S0, mats_cal, hold, out):
     band = (m >= OBS_MONEY_MIN) & (m <= OBS_MONEY_MAX) & (hold["C"] >= 0.005 * S0)
     y_h = np.log(hold["K"][band] / S0)
     C_mkt = hold["C"][band]
-    iv_mkt = hold["iv"][band]
     o = np.argsort(y_h)
-    y_h, C_mkt, iv_mkt = y_h[o], C_mkt[o], iv_mkt[o]
+    y_h, C_mkt = y_h[o], C_mkt[o]
 
     # Local-vol price: one forward solve on the calibration maturities, sampled at the gap.
     _, traj = compute_Af_surface(a_cal, p["u_0"], p["dt"], M_TIME, V,
@@ -121,11 +113,9 @@ def _report_and_plot(p, a_cal, S0, mats_cal, hold, out):
     n_h = int(round(hold["T"] / p["dt"]))
     u_h = get_array(traj[n_h])[order]
     C_lv = np.interp(y_h, y_s, u_h)
-    iv_lv = np.array([implied_vol(c, S0, yy, hold["r"], hold["q"], hold["T"])
-                      for c, yy in zip(C_lv, y_h)])
 
     # Implied-vol interpolation price.
-    iv_ip, C_ip, bracket = iv_interp(S0, mats_cal, hold, y_h)
+    _, C_ip, bracket = iv_interp(S0, mats_cal, hold, y_h)
 
     rel_lv = np.abs(C_lv - C_mkt) / C_mkt
     rel_ip = np.abs(C_ip - C_mkt) / C_mkt
@@ -136,29 +126,21 @@ def _report_and_plot(p, a_cal, S0, mats_cal, hold, out):
 
     print(f"\nHeld-out T={hold['T']:.3f} bracketed by "
           f"T={bracket[0]:.3f} and T={bracket[1]:.3f}, {band.sum()} liquid strikes.")
-    print(f"{'method':>18} {'med%':>7} {'max%':>7} {'med% |y|<.1':>12} {'max% |y|<.1':>12}")
-    print(f"{'local volatility':>18} {np.median(rel_lv):>6.2%} {np.max(rel_lv):>6.2%} "
-          f"{np.median(rel_lv[near]):>11.2%} {np.max(rel_lv[near]):>11.2%}")
-    print(f"{'IV interpolation':>18} {np.median(rel_ip):>6.2%} {np.max(rel_ip):>6.2%} "
-          f"{np.median(rel_ip[near]):>11.2%} {np.max(rel_ip[near]):>11.2%}")
+    print(f"{'method':>18} {'med%':>7} {'max%':>7} {'med% |y|<.1':>12} {'max% |y|<.1':>12} "
+          f"{'med$ |y|<.1':>12} {'max$ |y|<.1':>12}")
+    for name, rel, C in (("local volatility", rel_lv, C_lv), ("IV interpolation", rel_ip, C_ip)):
+        d = np.abs(C - C_mkt)[near]
+        print(f"{name:>18} {np.median(rel):>6.2%} {np.max(rel):>6.2%} "
+              f"{np.median(rel[near]):>11.2%} {np.max(rel[near]):>11.2%} "
+              f"{np.median(d):>12.3f} {np.max(d):>12.3f}")
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
-
-    ax = axes[0]
-    ax.plot(y_h, iv_mkt, "ko", ms=4, label="market IV (held out)")
-    ax.plot(y_h, iv_lv, "-", color="crimson", lw=1.8, label="local-vol price -> IV")
-    ax.plot(y_h, iv_ip, "--", color="tab:blue", lw=1.8, label="IV interpolation")
-    ax.set_xlabel(r"Log-moneyness  $y=\log(K/S_0)$")
-    ax.set_ylabel(r"Implied volatility  $\sigma_{iv}$")
-    ax.set_title(rf"Held-out smile  $\tau$={hold['T']:.2f}")
-    ax.legend(fontsize=8); ax.grid(True, alpha=0.4)
-
-    ax = axes[1]
-    ax.plot(y_h, 100 * rel_lv, "-", color="crimson", lw=1.8, label="local volatility")
-    ax.plot(y_h, 100 * rel_ip, "--", color="tab:blue", lw=1.8, label="IV interpolation")
+    w = np.abs(y_h) <= PLOT_Y_MAX
+    fig, ax = plt.subplots(figsize=(8, 5.5))
+    ax.plot(y_h[w], 100 * rel_lv[w], "-", color="crimson", lw=1.8, label="local volatility")
+    ax.plot(y_h[w], 100 * rel_ip[w], "--", color="tab:blue", lw=1.8, label="IV interpolation")
     ax.set_xlabel(r"Log-moneyness  $y=\log(K/S_0)$")
     ax.set_ylabel("Relative price error (%)")
-    ax.set_title("Out-of-sample reprice error")
+    ax.set_title(rf"Out-of-sample reprice error  $\tau$={hold['T']:.2f}")
     ax.legend(fontsize=9); ax.grid(True, alpha=0.4)
 
     plt.tight_layout()
@@ -170,8 +152,10 @@ def _report_and_plot(p, a_cal, S0, mats_cal, hold, out):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Example 6 -- out-of-sample holdout pricing")
     parser.add_argument("--holdout", default=DEFAULT_HOLDOUT)
-    parser.add_argument("--beta-y", type=float, default=1.0)
-    parser.add_argument("--beta-tau", type=float, default=1.0)
+    # Same regularisation as the production surface of Example 4: the comparison is only fair
+    # if the local-vol side is the surface the chapter actually calibrates.
+    parser.add_argument("--beta-y", type=float, default=FIXED_BETA_Y)
+    parser.add_argument("--beta-tau", type=float, default=FIXED_BETA_TAU)
     parser.add_argument("--max-iter", type=int, default=200)
     parser.add_argument("--out", default="egger_ex6_holdout.png")
     parser.add_argument("--replot", action="store_true")

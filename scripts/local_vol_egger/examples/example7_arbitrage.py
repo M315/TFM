@@ -27,9 +27,8 @@ from dolfin import set_log_level, LogLevel
 
 from examples.example4_surface import (load_surface, build_problem, DATA_PATH,
                                        M_TIME, OBS_MONEY_MIN, OBS_MONEY_MAX)
-from examples.example6_holdout import implied_vol
 from optimization.surface import compute_Af_surface
-from utils import get_array
+from utils import get_array, implied_vol
 
 set_log_level(LogLevel.ERROR)
 

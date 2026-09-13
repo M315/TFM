@@ -10,8 +10,10 @@ implied-vol skew at the money,
 
 This script reuses the surface calibrated in Example 4 (cached in egger_ex4_surface.npz). For
 each maturity it estimates both at-the-money skews by a local quadratic fit in a small window
-around y = 0, one on the recovered local-vol slice and one on the market implied-vol smile, and
-plots the two skews and their ratio against maturity.
+around y = 0, one on the recovered local-vol slice and one on the market implied-vol smile. It
+prints the skews and their ratio for every maturity (also as LaTeX table rows) and draws the
+rule on a couple of representative maturities: the smile, the local-vol slice, their ATM
+tangents, and a line of twice the implied slope.
 
 Run from the package root (scripts/local_vol_egger):
 
@@ -30,21 +32,67 @@ from utils import get_array
 
 set_log_level(LogLevel.ERROR)
 
-ATM_WINDOW = 0.05   # fit sigma(y) over |y| <= ATM_WINDOW to read the slope at the money
+ATM_WINDOW  = 0.05   # fit sigma(y) over |y| <= ATM_WINDOW to read the slope at the money
+PLOT_WINDOW = 0.10   # log-moneyness range shown in the slice figure
+SLICE_PICKS = (0, 4)  # maturities drawn in the slice figure (index into the kept maturities)
 
 
-def atm_skew(y, sigma, window=ATM_WINDOW):
+def atm_fit(y, sigma, window=ATM_WINDOW):
     """
-    At-the-money slope d sigma / dy at y = 0 from a local quadratic fit.
+    Quadratic fit sigma ~ c0 + c1 y + c2 y^2 over the near-ATM window |y| <= window.
 
-    A quadratic sigma ~ c0 + c1 y + c2 y^2 over the near-ATM window is robust to the curvature
-    of the smile and to quote noise; the skew is the linear coefficient c1.
+    Returns (c0, c1): the at-the-money level and the at-the-money skew d sigma / dy at y = 0.
+    The quadratic is robust to the curvature of the smile and to quote noise.
     """
     m = np.abs(y) <= window
     if m.sum() < 3:
         m = np.argsort(np.abs(y))[:5]
     c2, c1, c0 = np.polyfit(y[m], sigma[m], 2)
-    return c1
+    return c0, c1
+
+
+def plot_slices(p, sig, y_s, fits, out, picks=SLICE_PICKS):
+    """
+    Draw the rule of two on a couple of maturities: for each one the market smile and the
+    recovered local-vol slice near the money, with their ATM tangents and, from the local
+    level, a line of twice the implied slope. The rule holds when that line sits on the local
+    tangent.
+    """
+    fig, axes = plt.subplots(1, len(picks), figsize=(11, 4.5))
+    # Tangents are drawn only a little past the window they were fitted on.
+    yy = np.linspace(-1.4 * ATM_WINDOW, 1.4 * ATM_WINDOW, 50)
+    w = np.abs(y_s) <= PLOT_WINDOW
+
+    for ax, k in zip(np.atleast_1d(axes), picks):
+        ob = p["obs"][k]
+        (iv0, s_iv), (loc0, s_loc) = fits[k]
+        band = np.abs(ob["y_q"]) <= PLOT_WINDOW
+
+        ax.plot(ob["y_q"][band], ob["iv"][band], "o", ms=3.5, color="tab:blue", alpha=0.6,
+                label=r"market $\sigma_{iv}$")
+        ax.plot(y_s[w], sig[k][w], "-", color="crimson", lw=1.8,
+                label=r"recovered $\sigma_{loc}$")
+        ax.plot(yy, iv0 + s_iv * yy, "--", color="tab:blue", lw=1.0,
+                label=rf"implied tangent, slope {s_iv:.2f}")
+        ax.plot(yy, loc0 + s_loc * yy, "--", color="crimson", lw=1.0,
+                label=rf"local tangent, slope {s_loc:.2f}")
+        ax.plot(yy, loc0 + 2.0 * s_iv * yy, ":", color="k", lw=1.6,
+                label=r"slope $2\,\partial_y\sigma_{iv}$")
+
+        ax.axvspan(-ATM_WINDOW, ATM_WINDOW, color="gray", alpha=0.12)
+        ax.axvline(0.0, color="gray", lw=0.6)
+        ax.set_xlim(-PLOT_WINDOW, PLOT_WINDOW)
+        lo = min(sig[k][w].min(), ob["iv"][band].min())
+        hi = max(sig[k][w].max(), ob["iv"][band].max())
+        ax.set_ylim(lo - 0.05 * (hi - lo), hi + 0.05 * (hi - lo))
+        ax.set_xlabel(r"Log-moneyness  $y=\log(K/S_0)$")
+        ax.set_ylabel(r"Volatility  $\sigma$")
+        ax.set_title(rf"$\tau$ = {ob['T']:.3f} ({ob['exp']}),  ratio {s_loc / s_iv:.2f}")
+        ax.legend(fontsize=8); ax.grid(True, alpha=0.4)
+
+    plt.tight_layout()
+    plt.savefig(out, dpi=150)
+    plt.close(fig)
 
 
 def main(out="egger_ex5_skew.png"):
@@ -58,42 +106,29 @@ def main(out="egger_ex5_skew.png"):
     order = np.argsort(p["y_n"])
     y_s = p["y_n"][order]
 
-    print(f"{'T':>6} {'iv skew':>9} {'loc skew':>9} {'ratio':>7}")
-    T, s_iv, s_loc = [], [], []
+    # Per maturity: the recovered slice, its ATM fit and the market smile's ATM fit.
+    sig, fits, T, s_iv, s_loc = [], [], [], [], []
     for k, ob in enumerate(p["obs"]):
         sig_k = np.sqrt(2.0 * np.maximum(get_array(a_cal.a[k])[order], 0.0))
-        loc = atm_skew(y_s, sig_k)
-        iv = atm_skew(ob["y_q"], ob["iv"])
-        T.append(ob["T"]); s_iv.append(iv); s_loc.append(loc)
-        print(f"{ob['T']:>6.3f} {iv:>9.4f} {loc:>9.4f} {loc / iv:>7.2f}")
+        loc_fit = atm_fit(y_s, sig_k)
+        iv_fit = atm_fit(ob["y_q"], ob["iv"])
+        sig.append(sig_k); fits.append((iv_fit, loc_fit))
+        T.append(ob["T"]); s_iv.append(iv_fit[1]); s_loc.append(loc_fit[1])
 
     T, s_iv, s_loc = np.array(T), np.array(s_iv), np.array(s_loc)
     ratio = s_loc / s_iv
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
+    print(f"\n{'expiration':>12} {'T':>6} {'iv skew':>9} {'loc skew':>9} {'ratio':>7}")
+    for k, ob in enumerate(p["obs"]):
+        print(f"{ob['exp']:>12} {T[k]:>6.3f} {s_iv[k]:>9.4f} {s_loc[k]:>9.4f} {ratio[k]:>7.2f}")
 
-    ax = axes[0]
-    ax.plot(T, s_iv, "o-", color="tab:blue", label=r"implied skew  $\partial_y\sigma_{iv}$")
-    ax.plot(T, s_loc, "s-", color="crimson", label=r"local skew  $\partial_y\sigma_{loc}$")
-    ax.plot(T, 2.0 * s_iv, "--", color="gray",
-            label=r"$2\times$ implied skew")
-    ax.set_xlabel(r"Maturity  $\tau$ (years)")
-    ax.set_ylabel(r"ATM skew  $\partial_y\sigma$")
-    ax.set_title("At-the-money skews")
-    ax.legend(fontsize=8); ax.grid(True, alpha=0.4)
+    # LaTeX rows for the table in the thesis.
+    print("\n% LaTeX table rows")
+    for k, ob in enumerate(p["obs"]):
+        print(f"    {ob['exp']} & {T[k]:.3f} & {s_iv[k]:.3f} & {s_loc[k]:.3f} "
+              f"& {ratio[k]:.2f} \\\\")
 
-    ax = axes[1]
-    ax.plot(T, ratio, "o-", color="tab:purple")
-    ax.axhline(2.0, ls="--", color="gray", label="Derman factor 2")
-    ax.set_xlabel(r"Maturity  $\tau$ (years)")
-    ax.set_ylabel(r"$\partial_y\sigma_{loc} / \partial_y\sigma_{iv}$")
-    ax.set_title("Skew ratio vs the factor of two")
-    ax.set_ylim(0, 3)
-    ax.legend(fontsize=9); ax.grid(True, alpha=0.4)
-
-    plt.tight_layout()
-    plt.savefig(out, dpi=150)
-    plt.close(fig)
+    plot_slices(p, sig, y_s, fits, out)
     print(f"\nShort end ratio (tau < 0.3): mean {np.mean(ratio[T < 0.3]):.2f}")
     print(f"Saved {out}")
 

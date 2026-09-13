@@ -33,18 +33,72 @@ import numpy as np
 import pandas as pd
 
 from rates import fetch_treasury_curve
-from data import fetch_spy_options
+from data import fetch_spy_options, _CACHE_DIR
 from main import (
     calibrate_dividend_yield,
     add_implied_vols,
-    select_expirations,
-    N_BINS,
     MAX_T,
 )
 
 # Written into scripts/local_vol_egger/ so the calibration example can load it
 # with a relative path.
 OUT_DIR = Path(__file__).resolve().parents[1] / "local_vol_egger" / "market_data"
+
+# Maturity selection. The implied-vol surface uses main.select_expirations, which keeps the most
+# liquid expiration per log-spaced maturity bucket. That is fine for drawing a surface but wrong
+# here: the buckets widen at the long end, exactly where the chain is already sparse, so liquid
+# expirations get discarded and the calibration is left crossing gaps the market does not have.
+# We keep every expiration whose band smile is dense enough to constrain a slice, minus a couple
+# of near duplicates that sit within two weeks of a kept one and would only add a redundant
+# slice.
+BAND_MONEY = (0.80, 1.20)   # matches the calibration's observation window
+MIN_BAND_STRIKES = 25
+DROP_NEAR_DUPLICATES = ("2026-08-31", "2026-12-31")
+
+
+def _select_expirations(df):
+    """
+    Keep the expirations with a usable band smile, dropping the listed near duplicates.
+
+    Counts OTM-composite strikes (calls above spot, puts below) inside the moneyness band,
+    which is what the calibration actually observes. Returns the kept expiration strings.
+    """
+    S0 = float(df["S"].iloc[0])
+    lo, hi = BAND_MONEY
+    keep = []
+    print(f"{'expiration':>12} {'T':>6} {'band nK':>8}  status")
+    for exp, g in df.groupby("expiration"):
+        m = g["K"] / S0
+        band = g[(m >= lo) & (m <= hi)]
+        comp = band[((band["option_type"] == "call") & (band["K"] >= S0)) |
+                    ((band["option_type"] == "put") & (band["K"] < S0))]
+        if exp in DROP_NEAR_DUPLICATES:
+            status = "dropped (near duplicate)"
+        elif len(comp) < MIN_BAND_STRIKES:
+            status = f"dropped ({len(comp)} < {MIN_BAND_STRIKES} band strikes)"
+        else:
+            status = "kept"
+            keep.append(exp)
+        print(f"{exp:>12} {float(g['T'].iloc[0]):>6.3f} {len(comp):>8}  {status}")
+    return keep
+
+
+def _cached_rate_curve(ref_date):
+    """
+    Rebuild r(T) from the cached option chains, for when the Treasury feed is unreachable.
+
+    data.py stamps every cached quote with the Treasury rate for its maturity, and
+    calibrate_dividend_yield keeps r fixed and calibrates only q, so the rates that reach the
+    export are these ones. Returns None if the chains are not cached, in which case the live
+    fetch is the only source and its failure must propagate.
+    """
+    paths = [_CACHE_DIR / f"spy_{t}_{ref_date}.parquet" for t in ("call", "put")]
+    if not all(pp.exists() for pp in paths):
+        return None
+    d = pd.concat([pd.read_parquet(pp) for pp in paths], ignore_index=True)
+    g = d.groupby("T")["r"].first().sort_index()
+    Ts, rs = g.index.to_numpy(), g.to_numpy()
+    return lambda T: float(np.interp(T, Ts, rs))
 
 
 def _assign_term_structure(df, term_struct):
@@ -91,14 +145,20 @@ def _call_smile(calls_g, puts_g, S0):
 def export(ref_date: date) -> Path:
     """Run the impl-vol pipeline and write the per-expiration smile .npz."""
     print(f"Reference date: {ref_date}")
-    r_curve, curve_date, _, _ = fetch_treasury_curve(ref_date)
-    print(f"  Treasury curve as of {curve_date}")
+    try:
+        r_curve, curve_date, _, _ = fetch_treasury_curve(ref_date)
+        print(f"  Treasury curve as of {curve_date}")
+    except (OSError, ValueError) as exc:
+        r_curve = _cached_rate_curve(ref_date)
+        if r_curve is None:
+            raise
+        print(f"  Treasury feed unavailable ({exc}); using the rates cached with the chains")
 
     calls_raw = fetch_spy_options(ref_date, r_curve, max_T=MAX_T, option_type="call")
     puts_raw = fetch_spy_options(ref_date, r_curve, max_T=MAX_T, option_type="put")
 
     all_raw = pd.concat([calls_raw, puts_raw], ignore_index=True)
-    exp_selection = select_expirations(all_raw, n_bins=N_BINS)
+    exp_selection = _select_expirations(all_raw)
     calls_raw = calls_raw[calls_raw["expiration"].isin(exp_selection)].copy()
     puts_raw = puts_raw[puts_raw["expiration"].isin(exp_selection)].copy()
 

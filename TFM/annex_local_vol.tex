@@ -6,18 +6,337 @@
 \label{app:local_vol}
 
 
-This appendix collects the implementation details of the local volatility calibration of
-Section~\ref{sec:market_surface} that do not fit in the main text.
+This appendix collects the implementation of the local volatility calibration of
+Chapter~\ref{cha:cal_local_vol} and the decisions taken along the way that the main text
+states without justifying.
 All code lives in \href{https://github.com/M315/TFM/tree/main/scripts/local_vol_egger/}{Local Volatility Code}
 and runs from the same cached SPY snapshot dated 2026-04-30
 used throughout Appendix~\ref{app:impl_vol}.
+The first sections describe the discrete problem that is actually solved, the domain, the
+parametrization of the surface, the observation operator and the gradient sweep.
+The later ones record the choices that could reasonably have been made differently, the prior,
+the term structure, the selection of expirations, the regularization parameters and the
+normalization of the unknown.
+
+% ----------------------------------
+\section{Discretization and computational domain}
+\label{subsec:discretization_details}
+
+The discretization is the one announced in Section~\ref{sec:variational_forms}, $P_1$ elements
+in $y$ and backward Euler in $\tau$. What the main text leaves open is the size of everything.
+
+The spatial domain is not fixed in advance, it is read off the data. Each kept expiration
+contributes the log-moneyness range of its quoted strikes inside the band
+$0.8 \le K/S_0 \le 1.2$, the union of those ranges is $y \in [-0.217,\,0.177]$, and the
+computational domain is that union padded by $0.25$ on each side,
+$y \in [-0.467,\,0.427]$, that is strikes from $0.63\,S_0$ to $1.53\,S_0$.
+The pad is what separates the artificial boundary from the data.
+Its width is about $1.8$ standard deviations of the longest maturity,
+$\sigma\sqrt{\tau} \approx 0.14$ at $\sigma = 0.15$ and $\tau = 0.88$,
+so whatever error we commit at the boundary is damped by the diffusion before it reaches the
+observed band. Widening it further only buys solve time, since the coefficient out there is
+constrained by no quote at all.
+
+The mesh is uniform, $199$ elements and therefore $200$ nodes, a spacing of
+$h \approx 4.5\times 10^{-3}$ in $y$, under half a percent in strike and finer than the quoted
+strike spacing everywhere in the band. Time is divided into $300$ steps up to the last
+maturity, $\Delta\tau \approx 2.9\times 10^{-3}$ years, close to one calendar day.
+
+Backward Euler is a deliberate choice over Crank-Nicolson. Crank-Nicolson is second order in
+time, but it is not strongly damping: its amplification factor tends to $-1$ for the stiff
+modes, so a non-smooth initial condition leaves oscillations that decay only slowly. Our
+initial condition is the call payoff, whose kink at $y = 0$ excites exactly those modes, and
+the oscillations are worst in the second derivative in strike, which is the quantity carrying
+the information about $a$. The standard cure is a Rannacher startup of a few implicit steps
+\cite{giles_carter_crank_nicolson}. We use implicit Euler throughout instead, which is
+uniformly damping at first order, because the time error is not the binding constraint here:
+Table~\ref{tab:discounted_pde} below measures it at a day-sized step as
+$5\times 10^{-2}$ dollars on a spot of $720$, a relative $10^{-4}$, an order of magnitude
+below the reprice errors we report.
+
+The solver works in dollars, not in the normalized price $u = C/S_0$ of
+Section~\ref{sec:change_variable}. The equation is linear so the two differ by a constant
+factor and describe the same coefficient, but the data term scales as $S_0^2$ while
+$\beta\|a - a^*\|^2_{H^1}$ does not, so $\beta$ is tied to the scale of the prices. The values
+quoted below are for prices in dollars at a spot of $720$, and they cannot be carried to
+another underlying, or to the normalized form, without rescaling.
+
+The boundary conditions are Dirichlet at both edges. The limits recorded
+in~\eqref{eq:inverse_pde_2}, intrinsic value on the left and zero on the right, hold as
+$M \to \infty$ and are too crude at a pad of $0.25$, where a call struck at $0.63\,S_0$ is
+still worth appreciably more than its intrinsic value at long maturity. We instead evaluate
+the Black-Scholes price at the two edge strikes, using that maturity's zero rate and dividend
+yield and a wing volatility interpolated across the term structure from the extreme quoted
+strike of each smile. This is exact whenever the smile is flat outside the quoted band, which
+is the same assumption already built into the flat extension of the prior. At $\tau = 0$ the
+boundary value is the payoff, so the data are continuous at the corner.
+
+% ----------------------------------
+\section{The surface as a stack of time slices}
+\label{subsec:slice_parametrization}
+
+The unknown is the stack of spatial slices of~\eqref{eq:coefficient_slices}, one per quoted
+maturity. With eleven maturities and $200$ nodes that is $2\,200$ numbers, held as a single
+flat vector, which is what the optimizer sees and what the bound constraints act on.
+
+The slice boundaries have to live on the time grid, so each maturity is snapped to the nearest
+time level, and if two maturities land on the same level the later one is pushed forward by
+one step. On this data the eleven maturities map to distinct levels and the longest lands
+exactly on the final step. The maturity the model prices is therefore displaced from the
+quoted one by at most half a step, about half a day, and we do not correct for it: the
+displacement is well inside the uncertainty of an end of day quote.
+
+Slice $k$ then covers $(\tau_{k-1},\tau_k]$ and the observation at $\tau_k$ is read off the
+trajectory at exactly the level where slice $k$ ends. This is what makes the triangular
+structure of Section~\ref{sec:time_dependent_a} exact in the discrete problem: the first
+expiration sees only the first slice, the second one the first two, and so on.
+
+The optimizer imposes $a \ge 10^{-8}$ and no upper bound, although the admissible
+set~\eqref{eq:admissible_set} carries one. The lower bound is the one that matters, it keeps
+the operator parabolic and the recovered volatility real, and it is what makes the calibrated
+surface arbitrage-free by construction.
+
+% ----------------------------------
+\section{The residual, and how a smile becomes data}
+\label{subsec:observation_operator}
+
+The misfit is the finite element $L^2$ norm over the observed band, not a sum of squared
+errors over the quotes. Each expiration's call prices are interpolated linearly onto the mesh
+nodes, and the difference against the computed price is multiplied by the $\{0,1\}$ indicator
+of the nodes lying inside that expiration's quoted range. Because the mask is a projection,
+$P^2 = P$, the same masked residual is simultaneously the integrand of the data term and the
+source injected into the adjoint sweep, and no separate transpose has to be worked out.
+
+The consequence of measuring the misfit in a continuum norm is that quotes are weighted by
+mesh spacing rather than by how many of them there are. The expiration with $116$ strikes in
+the band and the one with $46$ contribute the same integrated weight over the same interval of
+moneyness, and a region where the chain quotes every dollar does not outweigh one where it
+quotes every five. A plain sum over quotes would tilt the fit toward the densely quoted
+expirations and toward the money, for no modelling reason.
+
+The mask is a hard cut at the ends of each quoted range. Nothing outside is fitted, so the
+coefficient in the wings is set by the penalty alone, which is exactly the behaviour visible
+in the recovered slices of Figure~\ref{fig:egger_slices}.
+
+% ----------------------------------
+\section{The gradient in a single backward sweep}
+\label{subsec:gradient_sweep}
+
+One evaluation of the functional and its gradient is the following sequence.
+
+\begin{enumerate}[label=(\roman*)]
+    \item March the forward equation from $\tau = 0$ to the last maturity, storing the whole
+          trajectory. Here that is $301$ states of $200$ values, so everything fits in memory
+          and no checkpointing is needed.
+    \item At each observed level, form the masked residual, accumulate its squared norm into
+          the data term, and set the residual aside as an injection.
+    \item March the adjoint equation backward from the last level, started from the last
+          maturity's residual.
+    \item At each step, after solving for the new adjoint state, assemble that step's
+          contribution to the gradient and add it to the slice that owns the step.
+    \item Only then, add the residual observed at that level to the adjoint state.
+    \item Add the gradient of the penalty.
+\end{enumerate}
+
+The order of (iv) and (v) is the part that is easy to get wrong. Injecting the residual of
+$\tau_j$ before taking the step's gradient contribution would let the price quoted at $\tau_j$
+feed the coefficient on $(\tau_j,\tau_{j+1}]$, that is, it would make an option depend on the
+volatility after its own expiry. Taking the contribution first keeps the dependence causal and
+reproduces the triangular structure at the discrete level.
+
+Two further points deserve recording.
+
+The gradient is assembled directly as a linear form against the test functions and stopped
+there, with no mass matrix solve. Solving $M g = b$ would instead return the Riesz
+representative of the derivative in $L^2$, which is the natural gradient of the continuous
+problem, whereas the assembled vector $b$ is the derivative with respect to the nodal
+coefficients. Both are legitimately called the gradient, in different inner products, and
+mixing the two is the usual way to obtain a gradient test that passes on one mesh and fails on
+the next. We use the coefficient version everywhere, and the penalty gradient is assembled to
+match, as $2\beta(M + K)(a - a^*)$ with $M$ and $K$ the mass and stiffness matrices, so the
+two terms of the functional are differentiated in the same sense. It is also the version
+L-BFGS-B expects, since its line search and its box constraints act on the coefficients.
+
+What is differentiated is the discrete forward operator, not the continuous one. Every term of
+the variational form~\eqref{eq:variational_forward_eq} carrying $a$ contributes: the diffusion,
+the $\partial_y a$ term produced by the integration by parts, and the $a\,u_y$ half of the
+convection. This is why the duality test of Section~\ref{sec:adjoint_verification} closes to
+rounding error, $2.3\times 10^{-15}$, rather than to discretization error. Discretizing the
+continuous adjoint instead would have given a gradient that is correct in the limit and
+slightly wrong on the grid, which is enough to stall a quasi-Newton method near the minimum.
+
+The cost is two PDE solves per iteration whatever the number of slices and the number of
+nodes. Calibrating the eleven slices of the surface costs the same per iteration as
+calibrating the single curve of Example~1.
+
+% ----------------------------------
+\section{The discrete penalty}
+\label{subsec:penalty_details}
+
+The two penalties of~\eqref{eq:surface_functional} are assembled from the same matrices. The
+$H^1$ term is the full norm, values and slopes, and no condition is imposed on $a$ at the edges
+of the domain, so the minimizer meets the boundary with a flat coefficient, which is consistent
+with the flat wings of the prior.
+
+The penalty across maturities is an $L^2$ jump rather than a discrete derivative. The
+coefficient is piecewise constant in $\tau$ by construction, so $\partial_\tau a$ does not
+exist and $\|a_k - a_{k-1}\|^2_{L^2}$ is the natural discrete stand-in. It is deliberately not
+divided by the gap $\tau_k - \tau_{k-1}$. The gaps in this chain run from twelve days to
+seventy-nine, and dividing by them would let the surface move almost freely across the long
+gaps, which is precisely where the data are thinnest and the smoothing is most needed.
+
+Only the $H^1$ term sees the prior. The jump term is prior free, so it is a genuine smoothness
+requirement in maturity rather than a second pull toward the seed.
+
+% ----------------------------------
+\section{The prior and the seed}
+\label{subsec:prior_details}
+
+Section~\ref{sec:market_surface} explains why the prior cannot be the implied variance
+$\tfrac12\sigma_{\mathrm{iv}}^2$ and states the inversion~\eqref{eq:bbf_inversion} used
+instead. It comes from the short maturity result of \cite{berestycki_busca_florent}, that the
+implied volatility is the harmonic mean of the local volatility between spot and strike,
+\begin{equation}\label{eq:bbf_harmonic}
+    \frac{y}{\sigma_{\mathrm{iv}}(y)}
+        \;=\; \int_0^y \frac{dx}{\sigma_{\mathrm{loc}}(x)}
+    \qquad \text{as } \tau \to 0,
+\end{equation}
+whose derivative in $y$ gives~\eqref{eq:bbf_inversion} directly.
+
+Two details of the inversion matter in practice. The smile is replaced by a quadratic fit over
+the band before it is inverted, because the inversion needs
+$\partial_y\sigma_{\mathrm{iv}}$ and differentiating a raw quoted smile amplifies quote noise
+into the prior; a quadratic is the lowest order carrying both a skew and a curvature, so the
+seed keeps the two features that matter without importing the wiggles of one day's chain. And
+the denominator of~\eqref{eq:bbf_inversion} is floored at $0.35$. On the downside wing the
+skew is steep enough for $1 - y\,\partial_y\sigma_{\mathrm{iv}}/\sigma_{\mathrm{iv}}$ to
+collapse toward zero, and a short maturity asymptotic used at $\tau$ close to a year has no
+business producing an unbounded seed; the floor caps it at roughly three times the implied
+level. Outside the quoted band the seed is extended flat.
+
+The same field is used as the prior $a^*$ and as the starting iterate, so the optimizer begins
+at the centre of the penalty and moves away from it only where the prices ask it to.
+
+% ----------------------------------
+\section{Interest and dividend as piecewise constant forwards}
+\label{subsec:term_structure_details}
+
+The implied volatility pipeline delivers one zero rate $r_j$ and one dividend yield $q_j$ per
+expiration. The forward equation needs an instantaneous rate at every time level, so both are
+bootstrapped into forwards that are constant on each interval between quoted maturities and
+chosen so that integrating up to $\tau_j$ returns $z_j\tau_j$. Each maturity is then priced
+with exactly the discount factor that was used to invert its smile, and the pair $r - q$ is
+Egger's time dependent drift. The boundary values are the one place where the zero rates are
+used rather than the forwards, since those are Black-Scholes prices for a maturity and not
+local coefficients.
+
+Bootstrapping differentiates the curve, so it amplifies whatever noise the zero rates carry.
+For $r$ this is harmless, the forwards stay between $3.5\%$ and $3.9\%$. For $q$ it is
+visible: the per-expiration put-call parity estimates are noisy at the tenth of a percent
+level, and the implied forwards swing between $-0.4\%$ and $3.6\%$, one interval slightly
+negative. We leave them as the bootstrap produces them. Smoothing the dividend term structure
+would be defensible, but the alternative of a single constant $q$ misprices every maturity's
+forward by construction, and the per-interval wobble enters only through the drift $r - q$
+over one interval at a time.
+
+% ----------------------------------
+\section{From the option chain to the smiles}
+\label{subsec:market_data_details}
+
+Everything upstream of the calibration is the pipeline of Appendix~\ref{app:impl_vol}, the same
+snapshot, the same Treasury rates, the same put-call parity dividend yields and the same
+inverted volatilities.
+
+The prices handed to the calibration are call prices, since that is what the Dupire forward
+equation solves for, but they are not the quoted calls. Below spot the quoted put is converted
+by put-call parity, $C = P + S_0e^{-q\tau} - Ke^{-r\tau}$, so every price comes from the liquid
+out of the money leg while still describing a call. This is the out of the money composite of
+Appendix~\ref{app:impl_vol} re-expressed in call prices.
+
+The selection of expirations is the one place where the two pipelines deliberately part.
+Appendix~\ref{app:impl_vol} keeps the most liquid expiration in each of ten log-spaced maturity
+buckets, which balances a surface that is only going to be drawn. Here the slices are coupled
+in time, so skipping a liquid expiration is not neutral: it leaves the calibration to cross a
+gap the market does not have, with the jump penalty rather than quotes deciding what happens
+inside it. The buckets also widen at the long end, exactly where the chain is already sparse.
+We therefore keep every expiration whose composite carries at least twenty five strikes inside
+the band, and drop the two that sit within two weeks of a kept one, 31 August and 31 December
+2026. Two expirations a few days apart carry nearly the same information, and the second slice
+would be fixed by the penalty rather than by its own quotes. Eleven expirations survive, with
+maturities from $0.096$ to $0.882$ years and between $46$ and $116$ strikes each in the band.
+
+% ----------------------------------
+\section{Choice of the regularization parameters on market data}
+\label{subsec:beta_market}
+
+Section~\ref{sec:beta_choice} describes Egger's decreasing sequence of $\beta$ stopped by the
+Morozov discrepancy principle, which is what the synthetic examples use, where $\delta$ is
+known because the noise was added by hand.
+
+On market data $\delta$ is not known. We estimated it from a relative price noise model, half a
+percent of each quoted price over the observed band, which is the order of a bid-ask spread on
+liquid SPY options, and ran the schedule against it. The stopping rule is not trustworthy at
+that point. The estimate is a guess rather than a measurement, and more importantly the gap
+between the quotes and the model is not noise in the sense the principle assumes: it also
+contains the early exercise premium neglected in Appendix~\ref{app:impl_vol}, the fact that the
+quotes across an expiration are not simultaneous, and the error in $r$ and $q$. A stopping
+$\beta$ inherits all of it, and moves with an estimate we cannot pin down.
+
+We therefore fix $\beta$ by hand for the market runs, $\beta = 10^{-4}$ for the single maturity
+fit and $\beta_y = 10^{-1}$, $\beta_\tau = 1$ for the surface, chosen by inspecting the
+trade-off directly: small enough that the reprice error settles near the level of the bid-ask
+spread, large enough that the slices do not develop structure the quotes cannot support. As
+noted above, these numbers are attached to prices in dollars at a spot of $720$ and to this
+mesh, and they are not dimensionless.
+
+% ----------------------------------
+\section{Reporting the reprice error}
+\label{subsec:reprice_metric}
+
+The reprice errors of Figure~\ref{fig:egger_reprice} are relative errors on prices, which are
+only meaningful where the price is not almost zero. We therefore report them over the liquid
+strikes of each maturity, those whose market price is at least $0.5\%$ of spot, about $\$3.60$.
+Without that floor the far out of the money calls, worth a few cents, would dominate the
+maximum and say nothing about the quality of the fit. The model price at a quoted strike is
+read back by interpolating the computed solution from the mesh nodes. The unweighted $L^2$
+misfit over the whole band is reported separately, so the two measures are not confused: they
+do not have to move together, and in Table~\ref{tab:discounted_calibration} they do not.
+
+% ----------------------------------
+\section{Decisions in the synthetic examples}
+\label{subsec:synthetic_decisions}
+
+Three choices in the reproduction of Examples~1 and~2 of \cite{egger2005tikhonov} are worth
+recording, since none of them is stated in the paper.
+
+\paragraph{The spot.} The text of the paper says $S = 100$, but its tabulated option values, a
+call worth $439$ at $K = 600$, and the description of test D, an underlying worth $1000\$$,
+only make sense at $S_0 = 1000$. The recovered $a$ is invariant under a rescaling of the
+prices, but the Tikhonov balance is not, the data term scales as $S_0^2$ and the penalty does
+not, so reproducing the paper's $\beta$ requires its $S_0$. We use $S_0 = 1000$.
+
+\paragraph{The noise model.} The paper adds $0.1\%$ noise to the data and remarks that at
+$S_0 = 1000$ this amounts to an uncertainty of about $\pm 1\$$, of the size of a typical
+bid-ask spread. The two readings are not the same: $0.1\%$ of $S_0$ is a flat $\pm 1\$$ band on
+every price, $0.1\%$ of each price is proportional to it. We use the relative reading. A flat
+band is a far larger perturbation on the cheap out of the money calls, where the price itself
+is of the order of a dollar and the whole signal is destroyed, and it did not reproduce the
+paper's reconstructions; the relative reading does.
+
+\paragraph{The inverse crime.} The paper generates its synthetic data on a wider domain with a
+finer discretization and a different time integrator, so that the operator being inverted is
+not the operator that produced the data. We follow the same idea, generating the data of
+Example~2 on $[-5,5]$ with four times the spatial and temporal resolution and interpolating
+onto the reconstruction grid, but keep implicit Euler on both sides rather than switching
+schemes. The refinement alone already separates the two operators.
 
 % ----------------------------------
 \section{The discounted normalization $u = e^{\int_t^T q\,ds}\,C$}
 \label{subsec:discounted_normalization}
 
-Throughout Section~\ref{sec:market_surface} we work with the normalized call price
-$u = C/S_0$ and keep the explicit zero-order term of~\eqref{eq:inverse_pde_1}.
+Throughout Section~\ref{sec:market_surface} the unknown is the call price itself, in dollars
+(Section~\ref{subsec:discretization_details}), and the equation keeps the explicit zero-order
+term of~\eqref{eq:inverse_pde_1}.
 \cite{egger2005tikhonov} instead absorb the dividend factor into the unknown by setting
 \begin{equation*}
     \tilde{u}(y,\tau) = e^{\int_t^T q(s)\,ds}\,u(y,\tau),
@@ -35,8 +354,8 @@ The discounted form treats the exponential decay in $\tau$ exactly instead of le
 backward Euler scheme, but it pays for that by rescaling the data and the boundary values,
 which reweights the residual across maturities.
 We implemented both and compared them.
-Both remain in the code, selected by the \texttt{--discount} flag of the surface calibration
-script, and \texttt{examples/example8\_discounting.py} reproduces the two tables below.
+Both remain in the code as a switch on the solver, and the two tables below are reproducible
+from it.
 
 The discounted form needs three changes: drop the zero-order coefficient from the variational
 forms~\eqref{eq:variational_forward_eq} and~\eqref{eq:variational_adjoint_eq}, multiply the
@@ -50,7 +369,7 @@ That is a relative difference of $10^{-4}$, the $O(\Delta\tau)$ gap we expect.
 Refining the time grid tells us which one is closer to the exact solution.
 We solved forward at the production grid of $N = 300$ time steps and compared against a
 reference computed on the same time levels with $N = 2400$.
-Table~\ref{tab:discounted_pde} reports the error averaged over the nine quoted maturities, and
+Table~\ref{tab:discounted_pde} reports the error averaged over the eleven quoted maturities, and
 repeats the experiment at artificially inflated dividend yields.
 
 \begin{table}[h]
@@ -59,17 +378,17 @@ repeats the experiment at artificially inflated dividend yields.
         \toprule
         $q$ & explicit $-q\,u$ & discounted & ratio \\
         \midrule
-        market ($\leq 1.1\%$) & $5.62\times10^{-2}$ & $5.47\times10^{-2}$ & $1.03$ \\
-        $2\%$  & $5.43\times10^{-2}$ & $5.39\times10^{-2}$ & $1.01$ \\
-        $5\%$  & $4.64\times10^{-2}$ & $4.58\times10^{-2}$ & $1.01$ \\
-        $10\%$ & $3.51\times10^{-2}$ & $3.43\times10^{-2}$ & $1.02$ \\
-        $20\%$ & $4.82\times10^{-2}$ & $4.53\times10^{-2}$ & $1.06$ \\
+        market ($\leq 1.6\%$) & $5.51\times10^{-2}$ & $5.38\times10^{-2}$ & $1.02$ \\
+        $2\%$  & $5.25\times10^{-2}$ & $5.22\times10^{-2}$ & $1.01$ \\
+        $5\%$  & $4.44\times10^{-2}$ & $4.37\times10^{-2}$ & $1.01$ \\
+        $10\%$ & $3.37\times10^{-2}$ & $3.28\times10^{-2}$ & $1.03$ \\
+        $20\%$ & $4.93\times10^{-2}$ & $4.68\times10^{-2}$ & $1.05$ \\
         \bottomrule
     \end{tabular}
     \caption{Time discretization error of the forward solve at $N = 300$ time steps, in dollars
-             against an $N = 2400$ reference on the same time levels, averaged over the nine
+             against an $N = 2400$ reference on the same time levels, averaged over the eleven
              quoted maturities. The first row uses the calibrated dividend term structure, the
-             others a flat override. The discounted form never gains more than $6\%$, because
+             others a flat override. The discounted form never gains more than $5\%$, because
              the backward Euler error is dominated by the kink of the payoff and by the
              convection term rather than by the zero-order term.}
     \label{tab:discounted_pde}
@@ -79,11 +398,11 @@ Even at a dividend yield of $20\%$, an order of magnitude above anything SPY pay
 a few percent.
 The same holds for the inverse problem.
 Running the full surface calibration~\eqref{eq:surface_functional} both ways gives surfaces
-that differ by up to $0.5$ volatility points, which looks large until the two effects are
+that differ by up to one volatility point, which looks large until the two effects are
 separated.
 Table~\ref{tab:discounted_calibration} reprices each calibrated surface with both solvers.
-Swapping the solver moves the median error by $0.001$ percentage points, swapping the surface
-moves it by $0.02$.
+Swapping the solver moves the median error by $0.003$ percentage points, swapping the surface
+moves it by about $0.01$.
 The gap therefore measures the path the optimizer took through a flat valley of the Tikhonov
 functional, not the normalization.
 Neither surface is better than the other either, since the one with the lower median error over
@@ -95,14 +414,14 @@ the liquid strikes carries the higher unweighted data misfit.
         \toprule
         calibrated with & repriced with & median error & data misfit (\$$^2$) \\
         \midrule
-        discounted        & discounted        & $0.124\%$ & $0.02581$ \\
-        discounted        & explicit $-q\,u$  & $0.125\%$ & $0.02621$ \\
-        explicit $-q\,u$  & discounted        & $0.143\%$ & $0.02553$ \\
-        explicit $-q\,u$  & explicit $-q\,u$  & $0.144\%$ & $0.02591$ \\
+        discounted        & discounted        & $0.116\%$ & $0.02881$ \\
+        discounted        & explicit $-q\,u$  & $0.119\%$ & $0.02928$ \\
+        explicit $-q\,u$  & discounted        & $0.131\%$ & $0.02776$ \\
+        explicit $-q\,u$  & explicit $-q\,u$  & $0.128\%$ & $0.02817$ \\
         \bottomrule
     \end{tabular}
     \caption{Each calibrated surface of Section~\ref{sec:market_surface} repriced with both
-             solvers ($\beta_y = 10^{-1}$, $\beta_\tau = 1$, nine maturities). The median error
+             solvers ($\beta_y = 10^{-1}$, $\beta_\tau = 1$, eleven maturities). The median error
              is taken over the liquid strikes of each maturity, the data misfit is the
              unweighted term of~\eqref{eq:surface_functional}. The two rows of each block differ
              only by the solver and barely move, so what separates the blocks is the optimizer

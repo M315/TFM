@@ -16,6 +16,9 @@ Run from the package root (scripts/local_vol_egger):
 
     conda run -n fenics-legacy python -m examples.example4_surface --beta-y 1e-1 --beta-tau 1e0
 
+`--naive-prior` swaps the slice prior for a* = 1/2 sigma_iv^2, the comparison reported in the
+text: it anchors the H^1 penalty at half the correct skew and loosens the fit.
+
 By default the solve keeps the explicit zero-order term of the Dupire equation. `--discount`
 switches to Egger & Engl's discounted variable u = e^{\int_0^tau q} C, which cancels that term
 and leaves -u_tau + a(u_yy - u_y) + (q-r)u_y = 0; data and boundary values are scaled by the
@@ -165,7 +168,7 @@ def _local_vol_prior(y_q, iv):
     return 0.5 * sig_loc ** 2
 
 
-def build_problem(S0, mats, discounted=DISCOUNTED):
+def build_problem(S0, mats, discounted=DISCOUNTED, naive_prior=False):
     r"""
     Assemble the surface calibration problem from all maturities.
 
@@ -178,6 +181,10 @@ def build_problem(S0, mats, discounted=DISCOUNTED):
     With `discounted` the data and the boundary values are multiplied by e^{Q_q(tau)} so the
     solver works with u = e^{\int_0^tau q} C; each observation carries its own 'scale' so the
     repricing can undo it exactly.
+
+    With `naive_prior` the slice prior is the implied variance a* = 1/2 sigma_iv^2 instead of
+    the BBF inversion, which is the comparison reported in the text: it anchors the H^1 penalty
+    at half the correct skew.
     """
     # Keep only expirations with enough liquid strikes in the band (see MIN_BAND_STRIKES); the
     # rest of the setup, including the term structure, uses this kept set.
@@ -245,7 +252,9 @@ def build_problem(S0, mats, discounted=DISCOUNTED):
 
         # Per-maturity prior seed: BBF factor-of-two-consistent local vol on the nodes (flat
         # wings). See _local_vol_prior; this replaces the naive a* = 1/2 sigma_iv^2.
-        seeds.append(np.interp(y_n, p["y_q"], _local_vol_prior(p["y_q"], p["iv"])))
+        a_star = (0.5 * p["iv"] ** 2 if naive_prior
+                  else _local_vol_prior(p["y_q"], p["iv"]))
+        seeds.append(np.interp(y_n, p["y_q"], a_star))
 
     # Slices aligned to the snapped maturities; each slice's prior is that maturity's seed.
     edges = np.concatenate([[0.0], np.asarray(snapped)])
@@ -292,14 +301,16 @@ def build_problem(S0, mats, discounted=DISCOUNTED):
 # ---------------------------------------------------------------------------
 
 def run(beta_y=FIXED_BETA_Y, beta_tau=FIXED_BETA_TAU, max_iter=300,
-        out="egger_ex4_surface.png", replot=False, discounted=DISCOUNTED):
+        out="egger_ex4_surface.png", replot=False, discounted=DISCOUNTED,
+        naive_prior=False):
     S0, mats = load_surface(DATA_PATH)
     print("#" * 74)
     print(f"#  Example 4 -- SURFACE calibration  {DATA_DATE}  S0={S0:.2f}  "
-          f"{len(mats)} maturities  discounted={discounted}")
+          f"{len(mats)} maturities  discounted={discounted}  "
+          f"prior={'naive iv' if naive_prior else 'BBF'}")
     print("#" * 74)
 
-    p = build_problem(S0, mats, discounted)
+    p = build_problem(S0, mats, discounted, naive_prior)
 
     if replot:
         # Reuse the cached calibrated slices; skip the L-BFGS solve, just redraw.
@@ -371,13 +382,12 @@ def _report_and_plot(p, a_cal, beta_y, beta_tau, out):
 
     Ts, meds, maxs = _reprice_errors(p, a_cal)
 
-    fig = plt.figure(figsize=(18, 5))
-    ax0 = fig.add_subplot(1, 3, 1, projection="3d")
-    ax1 = fig.add_subplot(1, 3, 2)
-    ax2 = fig.add_subplot(1, 3, 3)
+    base = os.path.splitext(out)[0]
 
     # (1) 3D surface sigma(y, tau). The slices are refined in tau by linear interpolation
     # so the mesh reads as a smooth surface rather than a handful of ribbons.
+    fig = plt.figure(figsize=(7, 5.5))
+    ax0 = fig.add_subplot(1, 1, 1, projection="3d")
     tau_f = np.linspace(T_obs[0], T_obs[-1], 60)
     sig_f = np.column_stack([np.interp(tau_f, T_obs, sigw[:, j])
                              for j in range(sigw.shape[1])])
@@ -390,9 +400,12 @@ def _report_and_plot(p, a_cal, beta_y, beta_tau, out):
     ax0.set_title(r"Recovered local-vol surface  $\sigma(y,\tau)$")
     ax0.view_init(elev=26, azim=-58)
     fig.colorbar(surf, ax=ax0, shrink=0.6, pad=0.08, label=r"$\sigma$")
+    plt.tight_layout()
+    plt.savefig(f"{base}_3d.png", dpi=150)
+    plt.close(fig)
 
     # (2) Recovered slices against each maturity's market IV smile.
-    ax = ax1
+    fig, ax = plt.subplots(figsize=(7, 5.5))
     cmap = plt.cm.viridis(np.linspace(0, 1, len(p["obs"])))
     for k, ob in enumerate(p["obs"]):
         ax.plot(ob["y_q"], ob["iv"], color=cmap[k], lw=0.8, alpha=0.5)
@@ -402,20 +415,23 @@ def _report_and_plot(p, a_cal, beta_y, beta_tau, out):
     ax.set_ylabel(r"Volatility  $\sigma$")
     ax.set_title(r"Local-vol slices (solid) vs market IV (faint)")
     ax.legend(fontsize=7, ncol=2); ax.grid(True, alpha=0.4)
+    plt.tight_layout()
+    plt.savefig(f"{base}_slices.png", dpi=150)
+    plt.close(fig)
 
     # (3) Per-maturity reprice error.
-    ax = ax2
+    fig, ax = plt.subplots(figsize=(7, 5.5))
     ax.plot(Ts, 100 * meds, "o-", color="b", label="median")
     ax.plot(Ts, 100 * maxs, "s--", color="crimson", label="max (liquid)")
     ax.set_xlabel(r"Maturity  $\tau$ (years)")
     ax.set_ylabel("Relative reprice error (%)")
     ax.set_title(rf"Reprice error ($\beta_y$={beta_y:.0e}, $\beta_\tau$={beta_tau:.0e})")
     ax.legend(fontsize=9); ax.grid(True, alpha=0.4)
-
     plt.tight_layout()
-    plt.savefig(out, dpi=150)
+    plt.savefig(f"{base}_reprice.png", dpi=150)
     plt.close(fig)
-    print(f"Saved {out}")
+
+    print(f"Saved {base}_3d.png, {base}_slices.png, {base}_reprice.png")
 
 
 if __name__ == "__main__":
@@ -429,6 +445,9 @@ if __name__ == "__main__":
     parser.add_argument("--discount", dest="discounted", action="store_true",
                         default=DISCOUNTED,
                         help="solve for u = e^{int q} C instead of C")
+    parser.add_argument("--naive-prior", action="store_true",
+                        help="seed a* = 1/2 sigma_iv^2 instead of the BBF inversion")
     args = parser.parse_args()
     run(beta_y=args.beta_y, beta_tau=args.beta_tau, max_iter=args.max_iter,
-        out=args.out, replot=args.replot, discounted=args.discounted)
+        out=args.out, replot=args.replot, discounted=args.discounted,
+        naive_prior=args.naive_prior)

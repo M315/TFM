@@ -294,7 +294,7 @@ but it gives a the intuition that an implied volatility is not a local volatilit
 but a smoothed version of it over the region of $(t, S)$ where the option carries gamma.
 The smile is therefore always flatter than the local volatility surface that generates it.
 
-\subsection{The rule of two}
+\subsection{The rule of two}\label{sec:rule_of_two}
 
 A central result of the local volatility model concerns the relationship
 between the skew of the local volatility function and the skew of the implied volatility smile.
@@ -318,7 +318,7 @@ To first order in $\alpha$, the implied ATMF skew is given by
 \end{equation}
 
 If $\alpha(t)=\alpha$ is constant in time, the integral gives
-\begin{equation}
+\begin{equation}\label{eq:factor_two}
     \mathcal{S}_T = \frac{1}{2}\,\alpha.
 \end{equation}
 
@@ -326,7 +326,7 @@ Thus, for a constant local volatility skew, the implied skew is half the local s
 The averaging inherent in the mapping from local to implied volatilities
 smooths out the local volatility surface, making the implied smile flatter.
 
-\subsection{Smile dynamics and the skew stickiness ratio}
+\subsection{Smile dynamics and the skew stickiness ratio}\label{sec:ssr}
 
 In the local volatility model, the smile's dynamics are fully determined by the smile itself.
 There is no freedom to choose how implied volatilities move when the spot moves.
