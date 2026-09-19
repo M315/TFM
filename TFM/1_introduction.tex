@@ -1,3 +1,113 @@
 \chapter{Introduction}
 
+Financial products have been around for centuries,
+mostly in form of credit and insurance,
+more recently in form of shared ownership of companies.
+This products gave born to their natural extension, the derivatives,
+contracts whose value depends on the value of an underlying asset,
+they offer ways to transfer risk, also known as hedging,
+and to speculate on the future of the underlying,
+without owning it.
+For many knowing the price to buy or sell such contracts is crucial for their business,
+thus the more popular and more traded a product is,
+the more interest of modeling its price.
+This brings us to 1973 when coincidentally two big events for financial options,
+happened.
 
+An option is a contract that gives its holder the right,
+but not the obligation,
+to buy or sell an asset at an agreed price on an agreed date.
+In 1973 Black and Scholes \cite{Black1973} published their now famous model to price European options,
+Merton \cite{Merton1973} published the same result derived from a different and more general perspective.
+This model set the foundations to price options that coincidentally started to be listed in the CBOE,
+a large financial exchange in the US.
+
+As we will see in Chapter \ref{ch:bs},
+Black-Scholes model through some assumptions on how the underlying asset dynamics are,
+models the price of an option as a partial differential equation (PDE),
+\begin{equation*}
+    \frac{\partial f}{\partial t} =
+        r f(t, S_t)
+        - r \frac{\partial f}{\partial S} S_t 
+        - \frac{1}{2} \frac{\partial^2 f}{\partial S^2} \sigma^2 S_t^2,
+\end{equation*}
+one assumption is that the volatility $\sigma$ is constant,
+meaning that the variance of the underlying asset dynamics is constant in time,
+such simplification allows the PDE to have a closed solution,
+\begin{equation*}
+    f(t, S_t) = S_t \Phi(d_1) - K e^{-r(T-t)} \Phi(d_2),
+\end{equation*}
+making the model very popular and useful in practice.
+
+Before 1987,
+the empirical evidence backed the constant volatility hypothesis,
+but after the 1987 crash,
+markets start displaying what is known as the smile,
+volatility was not constant anymore,
+it depended on the strike price of the option.
+The change made the Black-Scholes model inconsistent with the market,
+and woke up the interest of modeling the volatility as a function of strike and time.
+Many models have been proposed to model the volatility,
+we will focus on the one proposed by Dupire \cite{dupire_pricing_smile},
+known as the local volatility model,
+where the volatility is a deterministic function of time and spot price,
+\begin{equation*}
+    \sigma(t, S)^2 = 2\,\frac{
+        \dfrac{\partial C}{\partial T} + qC + (r-q)\,K\,\dfrac{\partial C}{\partial K}
+    }{
+        K^2\,\dfrac{\partial^2 C}{\partial K^2}
+    }\Bigg|_{\substack{K = S,\\ T = t}},
+\end{equation*}
+and also models the price of an option as a PDE,
+\begin{equation*}
+    \frac{\partial C}{\partial T} + (r-q)\,K\,\frac{\partial C}{\partial K}
+    - \frac{\sigma^2(T,K)}{2}\,K^2\,\frac{\partial^2 C}{\partial K^2} = -qC.
+\end{equation*}
+We will see it more in detail in Chapter \ref{ch:local_vol}.
+
+In practice,
+all this models require a critical step to be useful,
+knowing the value of their parameters,
+in particular the volatility.
+Local volatility model requires to know the function describing the local volatility surface.
+In PDE theory this is known as an inverse problem,
+where the goal is to find the parameters of a PDE given some observations of its solution.
+
+\section{Objectives}
+
+The main goal of this thesis is to present a method to calibrate the local volatility model,
+while also presenting the theory behind the pricing model,
+going through some basics of stochastic calculus, the Black-Scholes equation and arbitrage theory.
+So will set a base to understand the local volatility model and its calibration as an inverse problem.
+
+We also aim to do a numerical implementation of both Black-Scholes and local volatility models,
+and their calibration,
+to check the theory, compare them and test some of the results presented in the literature.
+All the code can be found in the repository \href{https://github.com/M315/TFM}{https://github.com/M315/TFM}.
+
+\section{Structure of the document}
+
+Chapters 2 and 3 collect the preliminary notions on probability spaces,
+filtrations, martingales and Brownian motion,
+the It\^{o} integral, the It\^{o} formula and stochastic differential equations.
+
+Chapter 4 derives the Black-Scholes model,
+solves its PDE to obtain the pricing formula,
+and defines the implied volatility and its surface.
+There is numerical implementation of the implied volatility surface with a more detailed description in Appendix \ref{app:impl_vol}.
+
+Chapter 5 generalizes the pricing argument,
+presenting the PDE and the martingale methods for a general contingent claim and the two fundamental theorems of asset pricing.
+
+Chapter 6 introduces the local volatility model,
+deriving the Dupire formula and the forward equation,
+states the no-arbitrage conditions on the price surface,
+and collects some results on the local volatility model.
+
+Chapter \ref{cha:cal_local_vol} treats the calibration problem.
+It explains the ill-posedness,
+sets up the parameter-to-solution map and the Tikhonov functional,
+computes the gradient by the adjoint method,
+reviews the convergence rates and the source condition,
+and describes the discretization and the minimization.
+Here again we present a numerical implementation of the calibration method with a more detailed description in Appendix \ref{app:local_vol}.
