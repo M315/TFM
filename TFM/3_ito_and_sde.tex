@@ -140,7 +140,7 @@ The equation \eqref{eq:ito_process} can be also written in differential form as
     \end{equation*}
 \end{theorem}
 
-For the proof of the Ito's formula we refer to \cite{oksendal_sde}.
+For the proof of the Ito's formula we refer to \cite{oksendal_sde} Theorem 4.1.2.
 The formula can be extended to multiple dimensions.
 
 \begin{definition}[$n$-dimensional Ito process]
@@ -177,12 +177,12 @@ The formula can be extended to multiple dimensions.
     \begin{equation*}
         Y_t = g(t, X_t),
     \end{equation*}
-    is a $p$-dimensional Ito process whose components are given by
+    is a $p$-dimensional Ito process whose components, $0 \leq k \leq p$, are given by
     \begin{equation}\label{eq:ndim_ito_formula}
         dY_k(t) = 
             \frac{\partial g_k}{\partial t}(t, X_t) dt
-            + \sum_{i} \frac{\partial g_k}{\partial x_i}(t, X_t) dX_i(t)
-            + \frac{1}{2} \sum_{ij} \frac{\partial^2 g_k}{\partial x_i \partial x_j}(t, X_t) dX_i(t) dX_j(t),
+            + \sum_{0 \leq i \leq n} \frac{\partial g_k}{\partial x_i}(t, X_t) dX_i(t)
+            + \frac{1}{2} \sum_{0 \leq i,j \leq n} \frac{\partial^2 g_k}{\partial x_i \partial x_j}(t, X_t) dX_i(t) dX_j(t),
     \end{equation}
     where $dX_i(t) dX_j(t)$ is computed according to the rules
     \begin{equation*}
