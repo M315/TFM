@@ -7,6 +7,8 @@
 
 \chapter{Stochastic calculus}
 
+Most contents from this chapter are taken from \cite{oksendal_sde} chapters 3 to 5 and \cite{steele_stochastic}.
+
 To model the dynamics of a financial asset's value,
 an ordinary differential equation of the form
 \begin{equation*}
@@ -36,7 +38,7 @@ this stochastic integral is known as the Ito integral and will allow us to have 
     \end{equation*}
     such that
     \begin{itemize}
-        \item $(t, \omega)$ is $\mathcal{B} \times \mathcal{F}$-measurable, where $\mathcal{B}$ is the Borel $\sigma$-algebra on $[0, \infty)$ and $\mathcal{F}$ is the $\sigma$-algebra on $\Omega$,
+        \item $f(t, \omega)$ is $\mathcal{B} \times \mathcal{F}$-measurable, where $\mathcal{B}$ is the Borel $\sigma$-algebra on $[0, \infty)$ and $\mathcal{F}$ is the $\sigma$-algebra on $\Omega$,
         \item $f(t, \omega)$ is $\mathcal{F}_t$ adapted.
         \item $\E \left[ \int^{T}_{S} f(t, \omega)^2 dt \right] < \infty$.
     \end{itemize}
@@ -54,13 +56,13 @@ then this can be extended to functions in $\mathcal{V}$.
 
 For elementary functions we define the Ito integral as
 \begin{equation*}
-    \int^{T}_{S} \phi(t, \omega)\, dB_t(\omega) = \sum_{j} e_j(\omega) \left[ B_{t_{j + 1}} - B_{t_{j}} \right] (\omega).
+    \int^{T}_{S} \phi(t, \omega)\, dW_t(\omega) = \sum_{j} e_j(\omega) \left[ W_{t_{j + 1}} - W_{t_{j}} \right] (\omega).
 \end{equation*}
 
 \begin{lemma}[Ito isometry]
     Let $\phi(t, \omega)$ be a bounded elementary function, then
     \begin{equation*}
-        \E \left[ \left( \int^{T}_{S} \phi(t, \omega) dB_t (\omega) \right)^2 \right]
+        \E \left[ \left( \int^{T}_{S} \phi(t, \omega) dW_t (\omega) \right)^2 \right]
             = \E \left[ \int^{T}_{S} \phi(t, \omega)^2 dt \right].
     \end{equation*}
 \end{lemma}
@@ -94,10 +96,10 @@ that is the purpose of the Ito's lemma or Ito's formula.
 The Ito's formula is a stochastic version of the chain rule for derivatives.
 
 \begin{definition}[Ito process]
-    Let $B_t$ be a Brownian motion on $(\Omega, \F, P)$.
+    Let $W_t$ be a Brownian motion on $(\Omega, \F, P)$.
     An Ito process is a stochastic process $X_t$ on $(\Omega, \F, P)$ of the form
     \begin{equation}\label{eq:ito_process}
-        X_t = X_0 + \int^{t}_{0} \mu(s, X_s) ds + \int^{t}_{0} \sigma(s, X_s) dB_s,
+        X_t = X_0 + \int^{t}_{0} \mu(s, X_s) ds + \int^{t}_{0} \sigma(s, X_s) dW_s,
     \end{equation}
     where $\mu$ and $\sigma$ are adapted, measurable processes, that satisfy the integrability conditions
     \begin{equation*}
@@ -111,13 +113,13 @@ The Ito's formula is a stochastic version of the chain rule for derivatives.
 
 The equation \eqref{eq:ito_process} can be also written in differential form as
 \begin{equation*}
-    dX_t = \mu\, dt + \sigma\, dB_t.
+    dX_t = \mu\, dt + \sigma\, dW_t.
 \end{equation*}
 
 \begin{theorem}[1-dimensional Itô's formula]\label{thm:ito_formula}
     Let $X_t$ be an Itô process given by
     \begin{equation*}
-        dX_t = \mu\, dt + \sigma\, dB_t.
+        dX_t = \mu\, dt + \sigma\, dW_t.
     \end{equation*}
     Let $g(t, x) \in C^2([0, \infty) \times \R)$, then
     \begin{equation*}
@@ -132,9 +134,9 @@ The equation \eqref{eq:ito_process} can be also written in differential form as
     \end{equation}
     where $(dX_t)^2$ is computed according to the rules
     \begin{equation*}
-        (dB_t)^2 = dt, \qquad
+        (dW_t)^2 = dt, \qquad
         (dt)^2 = 0, \qquad
-        dB_t \cdot dt = 0.
+        dW_t \cdot dt = 0.
     \end{equation*}
 \end{theorem}
 
@@ -142,7 +144,7 @@ For the proof of the Ito's formula we refer to \cite{oksendal_sde}.
 The formula can be extended to multiple dimensions.
 
 \begin{definition}[$n$-dimensional Ito process]
-    Let $B_t = (B_1(t), \dots, B_m(t))$ be a $m$-dimensional Brownian motion,
+    Let $W_t = (W_1(t), \dots, W_m(t))$ be a $m$-dimensional Brownian motion,
     let $\mu_{i}$ and $\sigma_{ij}$ be adapted, measurable processes such that
     \begin{equation*}
         P \left( \int^{T}_{0} \left| \mu_{i}(t, \omega) \right| dt < \infty \right) = 1,
@@ -153,15 +155,15 @@ The formula can be extended to multiple dimensions.
     \begin{equation*}
         \left\{
         \begin{aligned}
-            & dX_1(t) = \mu_1 dt + \sigma_{11} dB_1(t) + \dots + \sigma_{1m} dB_m(t), \\
+            & dX_1(t) = \mu_1 dt + \sigma_{11} dW_1(t) + \dots + \sigma_{1m} dW_m(t), \\
             & \vdots \\
-            & dX_n(t) = \mu_n dt + \sigma_{n1} dB_1(t) + \dots + \sigma_{nm} dB_m(t), \\
+            & dX_n(t) = \mu_n dt + \sigma_{n1} dW_1(t) + \dots + \sigma_{nm} dW_m(t), \\
         \end{aligned}
         \right.
     \end{equation*}
     or in matrix notation
     \begin{equation*}
-        dX_t = \mu\, dt + \sigma\, dB_t,
+        dX_t = \mu\, dt + \sigma\, dW_t,
     \end{equation*}
     where $\mu = (\mu_1, \dots, \mu_n)$ and $\sigma = (\sigma_{ij})$ are an $n$-dimensional vector and an $n \times m$ matrix respectively.
 \end{definition}
@@ -169,7 +171,7 @@ The formula can be extended to multiple dimensions.
 \begin{theorem}[General Itô's formula]\label{thm:ndim_ito_formula}
     Let $X_t$ be an $n$-dimensional Itô process given by
     \begin{equation*}
-        dX_t = \mu\, dt + \sigma\, dB_t.
+        dX_t = \mu\, dt + \sigma\, dW_t.
     \end{equation*}
     Let $g(t, x) = (g_1(t, x), \dots, g_p(t, x)) \in C^2([0, \infty) \times \R^n)$, then
     \begin{equation*}
@@ -184,8 +186,8 @@ The formula can be extended to multiple dimensions.
     \end{equation}
     where $dX_i(t) dX_j(t)$ is computed according to the rules
     \begin{equation*}
-        (dB_i(t))^2 = dt, \qquad
-        dB_i(t)\, dB_j(t) = 0 \quad (i \neq j).
+        (dW_i(t))^2 = dt, \qquad
+        dW_i(t)\, dW_j(t) = 0 \quad (i \neq j).
     \end{equation*}
 \end{theorem}
 
@@ -193,7 +195,7 @@ The formula can be extended to multiple dimensions.
 
 A \textbf{stochastic differential equation} (SDE) is an equation of the form
 \begin{equation}\label{eq:sde_general}
-    dX_t = b(t, X_t)\, dt + \sigma(t, X_t)\, dB_t, \qquad X_0 = x_0,
+    dX_t = b(t, X_t)\, dt + \sigma(t, X_t)\, dW_t, \qquad X_0 = x_0,
 \end{equation}
 where $b: [0,T] \times \R^n \to \R^n$ is the \textit{drift} and
 $\sigma: [0,T] \times \R^n \to \R^{n \times m}$ is the \textit{diffusion} coefficient.
@@ -221,7 +223,7 @@ We close with two fundamental examples, both following \cite[Ch.~5]{oksendal_sde
 Let $\mu, \sigma \in \R$ with $\sigma \neq 0$ and $S_0 > 0$.
 Consider the SDE
 \begin{equation}\label{eq:gbm_sde}
-    dS_t = \mu S_t\, dt + \sigma S_t\, dB_t.
+    dS_t = \mu S_t\, dt + \sigma S_t\, dW_t.
 \end{equation}
 This is called \textbf{geometric Brownian motion} and is the model used in Section~\ref{subsec:black_scholes_model}
 for the dynamics of a stock price.
@@ -231,13 +233,13 @@ with $g_t = 0$, $g_x = x^{-1}$, $g_{xx} = -x^{-2}$,
 \begin{equation*}
     d(\ln S_t)
         = \frac{1}{S_t}\, dS_t - \frac{1}{2 S_t^2}(dS_t)^2
-        = \mu\, dt + \sigma\, dB_t - \frac{\sigma^2}{2}\, dt
-        = \left(\mu - \frac{\sigma^2}{2}\right) dt + \sigma\, dB_t.
+        = \mu\, dt + \sigma\, dW_t - \frac{\sigma^2}{2}\, dt
+        = \left(\mu - \frac{\sigma^2}{2}\right) dt + \sigma\, dW_t.
 \end{equation*}
-Integrating both sides from $0$ to $t$ gives $\ln(S_t / S_0) = (\mu - \sigma^2/2)\,t + \sigma B_t$,
+Integrating both sides from $0$ to $t$ gives $\ln(S_t / S_0) = (\mu - \sigma^2/2)\,t + \sigma W_t$,
 so the unique solution is
 \begin{equation}\label{eq:gbm_solution}
-    S_t = S_0 \exp\!\left[\left(\mu - \frac{\sigma^2}{2}\right) t + \sigma B_t\right].
+    S_t = S_0 \exp\!\left[\left(\mu - \frac{\sigma^2}{2}\right) t + \sigma W_t\right].
 \end{equation}
 
 \subsection{Example: Ornstein-Uhlenbeck process}
@@ -245,7 +247,7 @@ so the unique solution is
 Let $\theta, \sigma > 0$ and $\mu \in \R$.
 Consider the SDE
 \begin{equation}\label{eq:ou_sde}
-    dX_t = \theta(\mu - X_t)\, dt + \sigma\, dB_t, \qquad X_0 = x_0.
+    dX_t = \theta(\mu - X_t)\, dt + \sigma\, dW_t, \qquad X_0 = x_0.
 \end{equation}
 This is the \textbf{Ornstein-Uhlenbeck (OU) process},
 a mean-reverting model: the drift $\theta(\mu - X_t)$ pulls the process toward the long-run mean $\mu$ at rate $\theta$.
@@ -256,12 +258,12 @@ Applying Theorem~\ref{thm:ito_formula} with $g(t,x) = (x - \mu)e^{\theta t}$,
 \begin{equation*}
     dY_t
         = \theta(X_t - \mu)e^{\theta t}\, dt + e^{\theta t}\, dX_t
-        = e^{\theta t}\bigl[\theta(\mu - X_t) + \theta(X_t - \mu)\bigr] dt + \sigma e^{\theta t}\, dB_t
-        = \sigma e^{\theta t}\, dB_t.
+        = e^{\theta t}\bigl[\theta(\mu - X_t) + \theta(X_t - \mu)\bigr] dt + \sigma e^{\theta t}\, dW_t
+        = \sigma e^{\theta t}\, dW_t.
 \end{equation*}
 Integrating and reverting the substitution,
 \begin{equation}\label{eq:ou_solution}
-    X_t = \mu + (x_0 - \mu)\,e^{-\theta t} + \sigma \int_0^t e^{-\theta(t - s)}\, dB_s.
+    X_t = \mu + (x_0 - \mu)\,e^{-\theta t} + \sigma \int_0^t e^{-\theta(t - s)}\, dW_s.
 \end{equation}
 The OU process is Gaussian with $\E[X_t] = \mu + (x_0 - \mu)e^{-\theta t} \to \mu$ as $t \to \infty$.
 

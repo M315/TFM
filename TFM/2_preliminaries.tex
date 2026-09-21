@@ -76,7 +76,6 @@ If $\omega \in \Omega$ is fixed then the map
 \end{equation*}
 for $t \in T$ is a deterministic function, and is called \textit{path} of $X(t, \omega)$.
 
-
 \begin{definition}[Filtration]
 A \textbf{filtration} is a family of $\sigma$-algebras $\{ \F_t \}_{t \in T}$ indexed by $T$,
 such that $\F_s \subseteq \F_t$ for all $s \leq t$, where $s, t \in T$.
@@ -95,6 +94,19 @@ Thus we define a \textbf{filtered probability space} as a probability space with
 The idea of an adapted process is key when modeling using stochastic processes,
 as it ensures that the process at time $t$ depends only on the information available up to that time,
 but not on future information.
+
+\begin{definition}[Quadratic variation \cite{steele_stochastic} Ch. 8.6]
+    Let $X_t$ be a stochastic process on a filtered probability space $(\Omega, \F, \{ \F_t \}_{t \in T}, P)$.
+    For any partition $\pi = \{ t_0, t_1, \ldots, t_n \} \subset [0, t]$,
+    the $\pi$-quadratic variation of $X_t$ is defined as the random variable
+    \begin{equation*}
+        Q_\pi(X_t) = \sum_{i = 0}^{n - 1} (X_{t_{i + 1}} - X_{t_i})^2.
+    \end{equation*}
+    If there is a process $V_t$ such that $Q_\pi(X_t) \rightarrow V_t$ in probability,
+    for any sequence of partitions $\pi$ of $[0, t]$,
+    with $\mu(\pi) \rightarrow 0$,
+    then $V_t$ is called the \textbf{quadratic variation} of $X_t$ and is denoted by $\langle X \rangle_t$.
+\end{definition}
 
 \subsection{Martingales}
 
