@@ -83,7 +83,7 @@ The class $\mathcal{V}$ is rather limited and does not even contain all continuo
 Having to restrict to this class would be rather inconvenient when modeling using SDEs,
 luckily the Itô integral can be extended to a broader class by relaxing the last condition of Definition~\ref{def:ito_integral_reqs}
 \begin{equation*}
-    P \left( \int^{T}_{S} f(t, \omega)^2 dt < \infty \right) = 1,
+    \mathbb{P} \left( \int^{T}_{S} f(t, \omega)^2 dt < \infty \right) = 1,
 \end{equation*}
 will call this class of functions $\mathcal{W}$.
 Notice that the class $\mathcal{W}$ does contain all continuous functions.
@@ -96,18 +96,18 @@ that is the purpose of the Ito's lemma or Ito's formula.
 The Ito's formula is a stochastic version of the chain rule for derivatives.
 
 \begin{definition}[Ito process]
-    Let $W_t$ be a Brownian motion on $(\Omega, \F, P)$.
-    An Ito process is a stochastic process $X_t$ on $(\Omega, \F, P)$ of the form
+    Let $W_t$ be a Brownian motion on $(\Omega, \F, \mathbb{P})$.
+    An Ito process is a stochastic process $X_t$ on $(\Omega, \F, \mathbb{P})$ of the form
     \begin{equation}\label{eq:ito_process}
         X_t = X_0 + \int^{t}_{0} \mu(s, X_s) ds + \int^{t}_{0} \sigma(s, X_s) dW_s,
     \end{equation}
     where $\mu$ and $\sigma$ are adapted, measurable processes, that satisfy the integrability conditions
     \begin{equation*}
-        P \left( \int^{T}_{0} \left| \mu(t, \omega) \right| dt < \infty \right) = 1,
+        \mathbb{P} \left( \int^{T}_{0} \left| \mu(t, \omega) \right| dt < \infty \right) = 1,
     \end{equation*}
     and
     \begin{equation*}
-        P \left( \int^{T}_{0} \sigma(t, \omega)^2 dt < \infty \right) = 1.
+        \mathbb{P} \left( \int^{T}_{0} \sigma(t, \omega)^2 dt < \infty \right) = 1.
     \end{equation*}
 \end{definition}
 
@@ -147,9 +147,9 @@ The formula can be extended to multiple dimensions.
     Let $W_t = (W_1(t), \dots, W_m(t))$ be a $m$-dimensional Brownian motion,
     let $\mu_{i}$ and $\sigma_{ij}$ be adapted, measurable processes such that
     \begin{equation*}
-        P \left( \int^{T}_{0} \left| \mu_{i}(t, \omega) \right| dt < \infty \right) = 1,
+        \mathbb{P} \left( \int^{T}_{0} \left| \mu_{i}(t, \omega) \right| dt < \infty \right) = 1,
         \qquad
-        P \left( \int^{T}_{0} \sigma_{ij}(t, \omega)^2 dt < \infty \right) = 1,
+        \mathbb{P} \left( \int^{T}_{0} \sigma_{ij}(t, \omega)^2 dt < \infty \right) = 1,
     \end{equation*}
     then we define the $n$-dimensional Ito process $X_t = (X_1(t), \dots, X_n(t))$ as
     \begin{equation*}
