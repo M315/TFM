@@ -8,7 +8,8 @@
 
 \chapter{Black-Scholes}\label{ch:bs}
 
-Black-Scholes is a mathematical model for pricing options.
+Black-Scholes is a mathematical model for pricing options,
+originally published by Black-Scholes \cite{Black1973} and Merton \cite{Merton1973}.
 Although many other models have been developed since,
 the Black-Scholes model remains as the most important model in option pricing,
 as in many cases options in markets are quoted using the Black-Scholes formula.
@@ -153,7 +154,7 @@ this formula is called \textit{put-call parity} and illustrates the relationship
 
 \section{The Black-Scholes model}\label{subsec:black_scholes_model}
 
-The Black-Scholes model is a mathematical model for pricing options,
+The Black-Scholes model is a mathematical model for pricing European options, calls or puts,
 that is based on replicating the payoffs of the option dynamically using the underlying asset and a risk-free rate bond.
 
 Like before we assume that the market is arbitrage-free,
@@ -177,7 +178,7 @@ Then the value of the portfolio at any time $t$ is given by:
     V_t = a_t S_t + b_t \beta_t.
 \end{equation*}
 
-We need this portfolio to have the same payoff as the option at time $T$, so
+We need this portfolio to have the same payoff as the call option at time $T$, so
 \begin{equation*}
     V_T = \max(S_T - K, 0).
 \end{equation*}
@@ -198,7 +199,7 @@ which can be extended to
 \end{equation*}
 
 Now as the value of the replicating portfolio $V_t$ should be equal to the value of the option at any time $t$,
-we assume that this can be expressed by a function $f(t, S_t)$,
+we assume that this can be expressed by a function $V_t = f(t, S_t)$,
 depending only on the time $t$ and the price of the underlying asset $S_t$.
 Thus applying Ito's formula we have that
 \begin{equation*}
@@ -230,26 +231,30 @@ using the values of $a_t$ and $b_t$ from above,
 that can be rearranged to
 \begin{equation}\label{eq:bs_pde}
     \frac{\partial f}{\partial t} =
-        r f(t, S_t)
-        - r \frac{\partial f}{\partial S} S_t 
-        - \frac{1}{2} \frac{\partial^2 f}{\partial S^2} \sigma^2 S_t^2,
+        r f(t, S)
+        - r \frac{\partial f}{\partial S} S 
+        - \frac{1}{2} \frac{\partial^2 f}{\partial S^2} \sigma^2 S^2,
 \end{equation}
 with terminal condition
 \begin{equation*}
-    V_T = f(T, S_T) = \max(S_T - K, 0),
+    f(T, S) = \max(S - K, 0),
 \end{equation*}
 which is the \textbf{Black-Scholes PDE}.
+
+Note that we dropped the subscript in $S_t$.
+The relation between $S$ and $t$ was at the trajectories described through it's dynamics,
+but at time $t$ the underlying can take any positive value, $S \geq 0$.
 
 
 \section{Pricing - Solving the Black-Scholes PDE}\label{sec:bs_pricing}
 
 There is an analytical solution to the Black-Scholes PDE.
 Our derivation follows the approach of \cite[Ch. 11.4]{steele_stochastic},
-adapted to log-moneyness coordinates $x = \ln(S/K)$ instead of the log-price $\ln S$ used there;
+adapted to \textbf{log-moneyness} coordinates $x = \ln(S/K)$ instead of the log-price $\ln S$ used there;
 the two differ only by the constant shift $\ln K$ and the subsequent reduction to the heat equation is structurally identical.
 
 Start by change of variables.
-Let $\tau = T - t$ be the time to maturity,
+Let $\tau = T - t$ be the \textbf{time to maturity},
 and $x = \ln{\left( \frac{S}{K} \right)}$ be the log-moneyness.
 We define a new function $u(\tau, x) = f(t, S)$ so the Black-Scholes PDE is transformed to,
 \begin{equation*}
@@ -468,7 +473,7 @@ and the question is: which value of $\sigma$ is implied by each observed price?
 \end{definition}
 
 Uniqueness follows from strict monotonicity of the call price in $\sigma$.
-To see this we compute the \textit{vega} of the option, $\mathcal{V} := \partial C_{\mathrm{BS}} / \partial \sigma$.
+To see this we compute the \textbf{vega} of the option, $\mathcal{V} := \partial C_{\mathrm{BS}} / \partial \sigma$.
 
 Write $\tau = T - t$ for brevity and note that $d_1$ and $d_2$ both depend on $\sigma$.
 Splitting $d_1$ into its two terms makes differentiation straightforward,
@@ -548,9 +553,9 @@ Two features of this surface are well documented in the literature, see \cite{de
 \begin{itemize}
     \item \textbf{Volatility skew}: for a fixed maturity $T$,
           equity index options exhibit a pronounced \textit{negative skew}:
-          implied volatility increases as the strike decreases relative to the spot.
+          implied volatility increases as $K$ decreases relative to $S$.
           This reflects the demand for downside protection and the asymmetry of return distributions.
-    \item \textbf{Term structure}: for a fixed strike,
+    \item \textbf{Term structure}: for a fixed $K$,
           implied volatility varies with maturity,
           reflecting the market's expectation of future realized volatility at different horizons.
 \end{itemize}
@@ -567,7 +572,16 @@ calibrated per maturity from put-call parity (see Appendix~\ref{app:impl_vol} fo
 The characteristic features are clearly visible: the volatility skew in the moneyness direction
 and the term structure in the maturity direction.
 Figure~\ref{fig:iv_smile} shows the smile slice at the median maturity ($T \approx 0.21$ yr),
-where OTM puts (red) and OTM calls (blue) meet smoothly at the money.
+where \textbf{out of the money}, OTM~\footnote{
+    A call option is said to be out of the money, OTM,
+    if the strike is greater than the price, $K > S$,
+    this is because the price of the underlying have to move in the direction of the strike $K$ to make the option worth something at expiration.
+    Similarly a call option is said to be at the money, ATM,
+    if $K = S$ and in the money, ITM, if $K < S$.
+    Is the reverse for put options,
+    a put option is OTM if $K < S$ and ITM if $K > S$.
+}
+puts (red) and OTM calls (blue) meet smoothly at the money.
 
 \begin{figure}[h]
     \centering
