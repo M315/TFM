@@ -14,7 +14,7 @@
 
 \chapter{Local Volatility Model}\label{ch:local_vol}
 
-We are going to introduce the Local Volatility Model mainly following \cite{bergomi_stochastic_vol}.
+We are going to introduce the Local Volatility Model mainly following \cite[Ch. 2]{bergomi_stochastic_vol}.
 
 \section{Model description}
 
@@ -31,14 +31,17 @@ and the pricing PDE is identical to the Black-Scholes PDE,
 with the deterministic volatility function replacing the constant volatility
 \begin{equation*}
     \frac{\partial f}{\partial t} =
-        r f(t, S_t)
-        - (r - q) S_t \frac{\partial f}{\partial S}
-        - \frac{1}{2} \sigma^2(t, S_t) S_t^2 \frac{\partial^2 f}{\partial S^2},
+        r f(t, S)
+        - (r - q) S \frac{\partial f}{\partial S}
+        - \frac{1}{2} \sigma^2(t, S) S^2 \frac{\partial^2 f}{\partial S^2},
 \end{equation*}
 
 \subsection{Market model}
 
-A market model is a valuation model that includes vanilla options as part of the underlying,
+A market model is a valuation model that includes \textbf{vanilla options}~\footnote{
+    An option is said to be vanilla if their terms are standard and widely quoted in the market,
+    for example European options or American options.
+} as part of the underlying,
 this means we are assuming that when hedging a derivative,
 we can use the vanilla options as a hedging instrument,
 in other words,
@@ -46,14 +49,15 @@ the derivative can be replicated using a combination of the underlying as well a
 Thus vanilla options under a market model are exactly priced.
 
 The local volatility model is a market model,
-since it is calibrated to match the vanilla option prices observed in the market
+since it is calibrated to match the vanilla option prices observed in the market.
 
 \section{Dupire Equation}
 
 The Dupire equation, introduced in \cite{dupire_pricing_smile},
 expresses the local volatility function $\sigma(t, S)$ directly in terms of derivatives
 of call option prices with respect to strike and maturity.
-We present the derivation following \cite{bergomi_stochastic_vol}.
+As we have said previously,
+we present the derivation following \cite{bergomi_stochastic_vol}.
 
 \subsection{Derivation}
 
@@ -62,13 +66,20 @@ Consider the following general diffusive dynamics for $S_t$:
     dS_t = (r - q)\,S_t\,dt + \sigma_t\,S_t\,dW_t,
 \end{equation}
 where $\sigma_t$ is an arbitrary adapted process.
-The price of a European call option with strike $K$ and maturity $T$ under the risk-neutral measure is:
+The price of a European call option with strike $K$ and maturity $T$ follows from the pricing
+formula \eqref{eq:martingale_pricing}, with payoff $f(S_T) = (S_T - K)^+$ and a constant rate $r$,
 \begin{equation*}
-    C(K, T) = e^{-rT}\,\E\!\left[(S_T - K)^+\right].
+    C(K, T) = e^{-rT}\,\E\!\left[(S_T - K)^+\right],
 \end{equation*}
+the expectation being taken under the risk-neutral measure $\Q$.
 
 Before applying It\^{o}'s formula we recall the two generalized functions
 that appear as distributional derivatives of $(x)^+ = \max(x, 0)$.
+Both are understood in the sense of distributions,
+that is, as continuous linear functionals on the space of test functions
+$\mathcal{D}(\R) = C_c^{\infty}(\R)$,
+the smooth functions on $\R$ with compact support;
+see \cite[Ch. 1 and 3]{friedlander_joshi} for a rigorous treatment.
 
 \begin{definition}[Heaviside function]
 The \textbf{Heaviside function} $\theta : \R \to \{0,1\}$ is defined by
@@ -76,17 +87,21 @@ The \textbf{Heaviside function} $\theta : \R \to \{0,1\}$ is defined by
     \theta(x) =
     \begin{cases}
         1 & x > 0, \\
-        0 & x < 0.
+        0 & x \leq 0.
     \end{cases}
 \end{equation*}
+The value assigned at $x = 0$ is immaterial in what follows,
+since $\theta$ only enters through integrals and $\{0\}$ has zero Lebesgue measure.
 \end{definition}
 
 \begin{definition}[Dirac delta]
-The \textbf{Dirac delta} $\delta$ is the distributional derivative of $\theta$,
-characterized by the property that for any smooth test function $\varphi$:
+The \textbf{Dirac delta} $\delta \in \mathcal{D}'(\R)$ is the distributional derivative of $\theta$,
+characterized by the property that
 \begin{equation*}
-    \int_{-\infty}^{+\infty} \varphi(x)\,\delta(x)\,dx = \varphi(0).
+    \int_{-\infty}^{+\infty} \varphi(x)\,\delta(x)\,dx = \varphi(0),
+    \qquad \forall \varphi \in \mathcal{D}(\R),
 \end{equation*}
+where the integral is the customary notation for the action of $\delta$ on $\varphi$.
 \end{definition}
 
 These two distributions arise as the successive generalized derivatives of $(x)^+$:
@@ -115,28 +130,28 @@ Differentiating the identity $\mathcal{C}(K,T) = \E[(S_T - K)^+]$ with respect t
 \end{equation}
 The second identity is the Breeden-Litzenberger result \cite{breeden_litzenberger}: the second strike derivative
 of undiscounted call prices equals the risk-neutral density of $S_T$.
-To see why, let $p(\cdot, T)$ denote the risk-neutral density of $S_T$, so that
+To see why, let $p^*(\cdot, T)$ denote the risk-neutral density of $S_T$, so that
 \begin{equation*}
     \mathcal{C}(K, T)
         = \E[(S_T - K)^+]
-        = \int_0^{\infty} (s - K)^+\, p(s, T)\,ds
-        = \int_K^{\infty} (s - K)\, p(s, T)\,ds.
+        = \int_0^{\infty} (s - K)^+\, p^*(s, T)\,ds
+        = \int_K^{\infty} (s - K)\, p^*(s, T)\,ds.
 \end{equation*}
 Differentiating with respect to $K$ (using Leibniz's rule, noting the lower limit contributes zero
 because $(K-K)^+ = 0$):
 \begin{equation*}
     \frac{\partial \mathcal{C}}{\partial K}
-        = -\int_K^{\infty} p(s, T)\,ds
+        = -\int_K^{\infty} p^*(s, T)\,ds
         = -(1 - F(K, T)),
 \end{equation*}
-where $F(K, T) = P(S_T \leq K)$ is the risk-neutral CDF.
+where $F(K, T) = \Q(S_T \leq K)$ is the risk-neutral CDF.
 A second differentiation gives:
 \begin{equation}\label{eq:breeden_litzenberger}
-    \frac{\partial^2 \mathcal{C}}{\partial K^2} = p(K, T).
+    \frac{\partial^2 \mathcal{C}}{\partial K^2} = p^*(K, T).
 \end{equation}
-Since $\E[\delta(S_T - K)] = \int_0^\infty \delta(s - K)\,p(s,T)\,ds = p(K,T)$,
+Since $\E[\delta(S_T - K)] = \int_0^\infty \delta(s - K)\,p^*(s,T)\,ds = p^*(K,T)$,
 this is exactly the second identity in~\eqref{eq:dupire_density}.
-In particular, the positivity of $p$ guarantees $\partial^2 \mathcal{C}/\partial K^2 \geq 0$,
+In particular, the positivity of $p^*$ guarantees $\partial^2 \mathcal{C}/\partial K^2 \geq 0$,
 which we will use when discussing no-arbitrage conditions.
 
 From the identity $\mathcal{C} = \E[S_T\,\theta(S_T - K)] - K\,\E[\theta(S_T - K)]$ we also obtain:
@@ -173,7 +188,7 @@ and reverting to discounted prices $C = e^{-rT}\mathcal{C}$, we obtain:
     = 2\,\frac{\dfrac{\partial C}{\partial T} + qC + (r-q)\,K\,\dfrac{\partial C}{\partial K}}
            {K^2\,\dfrac{\partial^2 C}{\partial K^2}}.
 \end{equation}
-This identity holds for any model of the lognormal-type form \ref{eq:log-normal_diffusion},
+This identity holds for any model of the lognormal-type form \eqref{eq:log-normal_diffusion},
 with $\sigma_t$ an arbitrary adapted process \cite{bergomi_stochastic_vol}.
 The multiplicative structure $\sigma_t S_t$ is essential: it is what produces the factor $S_T^2$ in the It\^{o} expansion,
 which the sifting property then converts to $K^2$.
@@ -196,12 +211,15 @@ equation~\eqref{eq:dupire_formula} uniquely determines the local volatility func
 
 \subsection{Forward equation}
 
-Rearranging \eqref{eq:dupire_general} for a known local volatility function $\sigma(t, S)$
-yields the \textbf{Dupire forward equation}:
+In the local volatility model the left hand side of \eqref{eq:dupire_formula} is $\sigma^2(T, K)$,
+so for a known local volatility function that same identity can be rearranged
+into the \textbf{Dupire forward equation}:
 \begin{equation}\label{eq:dupire_forward}
     \frac{\partial C}{\partial T} + (r-q)\,K\,\frac{\partial C}{\partial K}
-    - \frac{\sigma^2(T,K)}{2}\,K^2\,\frac{\partial^2 C}{\partial K^2} = -qC.
+    - \frac{\sigma^2(T,K)}{2}\,K^2\,\frac{\partial^2 C}{\partial K^2} = -qC,
+    \qquad (K, T) \in (0, \infty) \times (0, T_{\max}],
 \end{equation}
+where $T_{\max}$ is the longest maturity of interest.
 Unlike the Black-Scholes backward PDE, which is solved backwards in $t$
 from a terminal payoff for a single strike and maturity,
 the forward equation propagates forward in $T$ with initial condition
@@ -210,9 +228,10 @@ producing prices for a fixed initial spot $S_0$ but all strikes $K$ and maturiti
 
 \subsection{No-arbitrage conditions}\label{sec:no_arbitrage}
 
-For the Dupire formula~\eqref{eq:dupire_formula} to yield a positive local variance,
-both the numerator and denominator of~\eqref{eq:dupire_general} must be strictly positive,
-which is equivalent to requiring the option surface to be free of arbitrage.
+Absence of arbitrage in the option surface makes both the numerator and the denominator of \eqref{eq:dupire_general} non-negative.
+The Dupire formula \eqref{eq:dupire_formula} then yields a non-negative local variance
+at every $(K, T)$ where the denominator is strictly positive,
+that is, wherever the risk-neutral density of $S_T$ does not vanish.
 
 \paragraph{Strike arbitrage.}
 From~\eqref{eq:dupire_density}, the denominator satisfies:
@@ -220,12 +239,36 @@ From~\eqref{eq:dupire_density}, the denominator satisfies:
     \frac{\partial^2 C(K,T)}{\partial K^2} = e^{-rT}\,\E\!\left[\delta(S_T - K)\right] \geq 0,
 \end{equation*}
 since it is proportional to the risk-neutral density of $S_T$.
-A violation can be exploited via a \textit{butterfly spread}:
-buying $\varepsilon^{-2}$ calls at strike $K-\varepsilon$,
+
+We can also get to the same condition by contradiction.
+Suppose $\partial^2 C/\partial K^2 < 0$ at some $(K, T)$ and consider a
+\textbf{butterfly spread}\footnote{
+    A butterfly spread is the combination of a long call at a low strike,
+    a long call at a high strike, $K$,
+    and two short calls at the strike in between, $K \pm a$,
+    all with the same maturity,
+    thus the payoff is $0$ if $S_T \leq K - a$ or $S_T \geq K + a$,
+    and positive other wise with a maximum payoff at $S_T = K$.
+    It is the standard way of taking a position on the curvature of the price surface
+    in the strike direction.
+}, buying $\varepsilon^{-2}$ calls at strike $K-\varepsilon$,
 buying $\varepsilon^{-2}$ calls at strike $K+\varepsilon$,
 and selling $2\varepsilon^{-2}$ calls at strike $K$.
-This portfolio has a non-negative payoff at maturity for any realisation of $S_T$,
-so its inception value must be non-negative, implying $\partial^2 C/\partial K^2 \geq 0$.
+Its value at inception, the premium paid to enter the position, is the second difference
+\begin{equation*}
+    V_0(\varepsilon)
+        = \frac{C(K-\varepsilon, T) - 2\,C(K, T) + C(K+\varepsilon, T)}{\varepsilon^2}
+        \xrightarrow[\varepsilon \to 0]{} \frac{\partial^2 C}{\partial K^2} < 0,
+\end{equation*}
+so for $\varepsilon$ small enough we are paid to enter the position.
+Its payoff at maturity,
+\begin{equation*}
+    \frac{(S_T - K + \varepsilon)^+ - 2\,(S_T - K)^+ + (S_T - K - \varepsilon)^+}{\varepsilon^2}
+    \geq 0,
+\end{equation*}
+is non-negative for any realisation of $S_T$ by convexity of $x \mapsto (x)^+$.
+This is an arbitrage in the sense of Definition~\ref{def:arbitrage},
+so $\partial^2 C/\partial K^2 \geq 0$.
 
 \paragraph{Maturity arbitrage.}
 The numerator of~\eqref{eq:dupire_general} can be rewritten as:
@@ -234,29 +277,32 @@ The numerator of~\eqref{eq:dupire_general} can be rewritten as:
 \end{equation*}
 which is non-negative if and only if $e^{qT}$ times the price of a call struck at
 a fixed proportion of the forward $F_T = S_0 e^{(r-q)T}$ is non-decreasing in maturity.
-A violation constitutes a \textit{maturity arbitrage}:
-one can buy a longer-dated option and sell a shorter-dated one at a net positive premium,
-with a delta position that generates non-negative P\&L at both maturities.
+A violation constitutes a \textbf{maturity arbitrage}:
+if the longer-dated call is worth less than the shorter-dated one,
+buying the former and selling the latter is entered at a negative premium,
+and holding the forward position that matches the two strikes leaves a non-negative
+profit and loss (P\&L) at both maturities,
+which is again an arbitrage in the sense of Definition \ref{def:arbitrage}.
 
 In an arbitrage-free market both conditions hold and
 the Dupire local volatility function is well-defined.
 
-Two remarks are worth making before leaving this point.
-First, both conditions are conditions on the \textit{prices},
+One remark is worth making before leaving this point.
+Both conditions are conditions on the \textit{prices},
 so any arbitrage-free surface admits a local volatility.
 In particular the steep skews observed at short maturities on equity indices
-are no evidence that jumps are needed to produce them \cite{bergomi_stochastic_vol}.
+are no evidence that jumps are needed to produce them \cite[Ch. 2]{bergomi_stochastic_vol}.
 
 \section{From local volatilities to implied volatilities}\label{sec:lv_to_iv}
 
 The Dupire formula \eqref{eq:dupire_formula} gets the local volatility from the option prices.
 In the opposite direction,
-how a given local volatility function shows up in the implied volatility surface, a.k.a the smile,
+how a given local volatility function shows up in the implied volatility surface, a.k.a. the smile,
 has no closed form,
 but admits approximations that are accurate enough to explain the shape of the smile the model produces and,
 more importantly, how that smile moves.
 We collect here the results we use later,
-following \cite{bergomi_stochastic_vol} and \cite{derman_vol_smile}.
+following \cite[Ch. 2]{bergomi_stochastic_vol} and \cite{derman_vol_smile}.
 
 \subsection{Implied volatility as an average of local volatility}
 
@@ -267,20 +313,20 @@ Delta hedging this option with the Black-Scholes model, i.e. using the implied v
 while the spot actually diffuses with the local volatility $\sigma(t,S)$ generates,
 between two rehedges, the gamma/theta non-zero P\&L given by
 \begin{equation*}
-    \frac{1}{2}\,S_t^2\,\frac{\partial^2 P_{\hat{\sigma}}}{\partial S^2}
+    \frac{1}{2}\,S_t^2\,\frac{\partial^2 C_{\hat{\sigma}}}{\partial S^2}
     \left(\sigma(t, S_t)^2 - \hat{\sigma}^2\right) dt .
 \end{equation*}
 By construction the two models price the option identically,
 so the discounted P\&L over time has zero expected value under the local volatility dynamics,
-which after rearranging gives \cite{bergomi_stochastic_vol}
+which after rearranging gives \cite[Ch. 2]{bergomi_stochastic_vol}
 \begin{equation}\label{eq:iv_gamma_average}
     \hat{\sigma}(K,T)^2
     = \frac{
         \E\!\left[\displaystyle\int_0^T e^{-rt}\,S_t^2\,
-            \frac{\partial^2 P_{\hat{\sigma}}}{\partial S^2}\,\sigma(t, S_t)^2\,dt\right]
+            \frac{\partial^2 C_{\hat{\sigma}}}{\partial S^2}\,\sigma(t, S_t)^2\,dt\right]
       }{
         \E\!\left[\displaystyle\int_0^T e^{-rt}\,S_t^2\,
-            \frac{\partial^2 P_{\hat{\sigma}}}{\partial S^2}\,dt\right]
+            \frac{\partial^2 C_{\hat{\sigma}}}{\partial S^2}\,dt\right]
       },
 \end{equation}
 the expectation being taken over paths of the local volatility model.
@@ -290,7 +336,7 @@ is an average of the local variance, $\sigma(t, S)^2$, along the paths,
 weighted by the gamma of the option.
 The relation is implicit, since $\hat{\sigma}$ appears in the weights on the right,
 so it is not a practical pricing formula,
-but it gives a the intuition that an implied volatility is not a local volatility at a point,
+but it gives the intuition that an implied volatility is not a local volatility at a point,
 but a smoothed version of it over the region of $(t, S)$ where the option carries gamma.
 The smile is therefore always flatter than the local volatility surface that generates it.
 
@@ -301,19 +347,20 @@ between the skew of the local volatility function and the skew of the implied vo
 
 Define the at the money forward, ATMF,
 skew $\mathcal{S}_T$ as the slope of the implied volatility smile
-with respect to log-strike, evaluated at the forward:
-\begin{equation}
+with respect to log-strike, evaluated at the forward $F_T = S_0 e^{(r-q)T}$:
+\begin{equation}\label{eq:atmf_skew}
     \mathcal{S}_T := \left.\frac{\partial \hat{\sigma}(K,T)}{\partial \ln K}\right|_{K=F_T}.
 \end{equation}
 
-Consider a local volatility function of the form
-\begin{equation}
+Consider a local volatility function that is, near the forward, linear in log-moneyness
+\begin{equation}\label{eq:lv_skew_expansion}
     \sigma(t, S) = \sigma_0 + \alpha(t)\, x + \cdots, \qquad x = \ln\left(\frac{S}{F_t}\right),
 \end{equation}
-where $\alpha(t)$ is the local volatility skew.
+where $\sigma_0 = \sigma(0, S_0)$ is the level of the local volatility
+and $\alpha(t)$ is its skew at time $t$.
 
-To first order in $\alpha$, the implied ATMF skew is given by
-\begin{equation}
+To first order in $\alpha$, the implied ATMF skew is given by \cite[Ch. 2]{bergomi_stochastic_vol}
+\begin{equation}\label{eq:atmf_skew_from_lv}
     \mathcal{S}_T = \frac{1}{T}\int_0^T \frac{t}{T}\,\alpha(t)\,dt .
 \end{equation}
 
@@ -331,20 +378,19 @@ smooths out the local volatility surface, making the implied smile flatter.
 In the local volatility model, the smile's dynamics are fully determined by the smile itself.
 There is no freedom to choose how implied volatilities move when the spot moves.
 
-The key quantity is the ATMF volatility $\hat{\sigma}_{F_T}$,
-the implied volatility for a strike equal to the forward $F_T$.
-And the key question is, to understand the dynamics is,
-when the spot moves by $d\ln S_0$, how does this volatility change?
+The key quantity is the ATMF volatility $\hat{\sigma}_{F_T} := \hat{\sigma}(F_T, T)$,
+the implied volatility for a strike equal to the forward,
+and the question is how it changes when the spot moves by $d\ln S_0$.
 
-To first order in the local skew $\alpha(t)$,
-\begin{equation}
+To first order in the local skew $\alpha(t)$ of \eqref{eq:lv_skew_expansion},
+\begin{equation}\label{eq:atmf_vol_move}
     \frac{d\hat{\sigma}_{F_T}(T)}{d\ln S_0}
     = \frac{1}{T}\int_0^T \alpha(t)\,dt .
 \end{equation}
 
-Using the expression for the ATMF skew $\mathcal{S}_T$ from the previous subsection,
-this can be rewritten as
-\begin{equation}
+Using \eqref{eq:atmf_skew_from_lv} to write $\alpha$ in terms of the ATMF skew,
+this becomes \cite[Ch. 2]{bergomi_stochastic_vol}
+\begin{equation}\label{eq:atmf_vol_move_skew}
     \frac{d\hat{\sigma}_{F_T}(T)}{d\ln S_0}
     = \mathcal{S}_T + \frac{1}{T}\int_0^T \mathcal{S}_t\,dt .
 \end{equation}
@@ -353,7 +399,7 @@ The rate at which the ATMF volatility moves with the spot is thus dictated entir
 by the term structure of the ATMF skew.
 
 Practitioners define the \textbf{skew stickiness ratio} (SSR) as
-\begin{equation}
+\begin{equation}\label{eq:ssr}
     \mathcal{R}_T := \frac{1}{\mathcal{S}_T}\,\frac{d\hat{\sigma}_{F_T}(T)}{d\ln S_0}.
 \end{equation}
 
@@ -365,8 +411,8 @@ Two familiar regimes serve as benchmarks:
     \item $\mathcal{R}_T = 1$: the smile stays fixed in strike space, so the ATMF volatility slides along the existing smile (sticky-strike).
 \end{itemize}
 
-In the local volatility model, using the expression above,
-\begin{equation}
+In the local volatility model, substituting \eqref{eq:atmf_vol_move_skew} into \eqref{eq:ssr},
+\begin{equation}\label{eq:ssr_local_vol}
     \mathcal{R}_T = 1 + \frac{1}{T}\int_0^T \frac{\mathcal{S}_t}{\mathcal{S}_T}\,dt .
 \end{equation}
 
