@@ -14,7 +14,16 @@
 The local volatility model must be calibrated to market option prices to be usable.
 Given quoted call prices $C^*(K_i, T_j)$ for a finite set of strikes and maturities,
 we seek a function $\sigma(S,t)$, or equivalently $a(y,\tau) = \tfrac{1}{2}\sigma^2$,
-such that the Dupire forward equation (\ref{eq:dupire_forward}) reproduces the observed prices.
+such that the Dupire forward equation \eqref{eq:dupire_forward} reproduces the observed prices.
+Written out, the direct problem we invert is
+\begin{equation*}
+    \frac{\partial C}{\partial T} + (r-q)\,K\,\frac{\partial C}{\partial K}
+    - \sigma^2(K,T)\,\frac{K^2}{2}\,\frac{\partial^2 C}{\partial K^2} + qC = 0,
+\end{equation*}
+for $(K,T) \in (0,\infty) \times (0, T_{\max}]$,
+with initial condition $C(K,0) = (S_0 - K)^+$
+and the boundary behaviour $C \to S_0 e^{-qT}$ as $K \to 0$ and $C \to 0$ as $K \to \infty$.
+The unknown is the coefficient $\sigma$, the data are values of the solution $C$.
 
 We follow \cite{egger2005tikhonov} and treat the calibration as a Tikhonov regularization problem.
 
@@ -30,7 +39,8 @@ the gamma is in the denominator,
 so in regions where gamma is small, like far OTM/ITM,
 the local volatility is not well determined by the prices.
 
-Also the Local Volatility model assumes that option prices are $C^{1,2}$ in $(T,K)$,
+Also the Local Volatility model assumes that option prices are once continuously differentiable
+in $T$ and twice in $K$,
 we are looking for a function $\sigma(S,t)$ that reproduces the market prices,
 but PDE theory suggests that that the coefficient $\sigma$ should live in a more general space, like $H^1$ or $L^2$.
 This arises the problem, where the solution is smoother than the coefficient.
@@ -121,6 +131,26 @@ $\Psi_1(\tau) \to e^{-q\tau}$, and the right boundary ($K \to \infty$) gives $\P
 
 \section{Parameter-to-solution map}
 
+Before stating the admissible set we fix the notation for the spaces involved,
+following \cite[Ch.~8 and 9]{brezis_functional} for the general theory.
+On a domain $D$ we write $L^p(D)$ for the Lebesgue space of $p$-integrable functions,
+with $L^2(D)$ a Hilbert space for the inner product and norm
+\begin{equation*}
+    (f,g)_{L^2(D)} = \int_D f\,g\,, \qquad \|f\|_{L^2(D)}^2 = (f,f)_{L^2(D)},
+\end{equation*}
+and $L^\infty(D)$ for the essentially bounded functions.
+The Sobolev space $H^1(D) = W^{1,2}(D)$ collects the $f \in L^2(D)$ whose first order weak
+derivatives are again in $L^2(D)$, normed by
+\begin{equation*}
+    \|f\|_{H^1(D)}^2 = \|f\|_{L^2(D)}^2 + \|\nabla f\|_{L^2(D)}^2,
+\end{equation*}
+and $H^1_0(D)$ is the closure of the smooth compactly supported functions in $H^1(D)$,
+the subspace vanishing on $\partial D$.
+We also use the parabolic space $W^{2,1}_p(Q)$ of functions on the space-time domain $Q$
+with two weak spatial and one weak time derivative in $L^p(Q)$.
+All derivatives below are weak derivatives, written $\partial_y$ in the penalty terms
+and abbreviated by subscripts, $u_y = \partial_y u$, inside the equations.
+
 For each admissible diffusion coefficient $a$,
 let $u(a)$ denote the solution to \eqref{eq:inverse_pde_1} - \eqref{eq:inverse_pde_3}.
 Fix an \emph{a priori} reference $a^* \in L^\infty(\mathbb{R})$ with $0 < \underline{a} \le a^* \le \bar{a}$,
@@ -141,7 +171,7 @@ hence weakly compact, which is what yields a minimizer.
 In the synthetic examples below the volatility is time independent, $a = a(y)$,
 and the penalty reduces to the spatial norm
 \begin{equation*}
-    \int_{-M}^{M} (a^2 + a_y^2)\,dy,
+    \|a\|_{H^1(\Omega)}^2 = \int_{-M}^{M} \bigl(a^2 + (\partial_y a)^2\bigr)\,dy,
 \end{equation*}
 on the bounded interval $H^1$ then also embeds into $C[-M,M]$,
 so the bounds $\underline{a} \le a \le \bar{a}$ hold pointwise.
@@ -176,12 +206,12 @@ Controlling this instability is the purpose of the Tikhonov penalty.
 Lets assume that there exists $a^\dagger \in \mathcal{K}(a^*)$ such that $u^\dagger = u(a^\dagger)$ reproduces the 'true' prices $u^\dagger$ exactly.
 And let $u^\delta$ denote the noisy observed option prices with a bound known a priori,
 \begin{equation*}
-    \|u^\delta - u^\dagger\|_{L_2(Q)} \le \delta.
+    \|u^\delta - u^\dagger\|_{L^2(Q)} \le \delta.
 \end{equation*}
 Following \cite{egger2005tikhonov} we stabilize the inverse problem by minimizing the
 \emph{Tikhonov functional}
 \begin{equation}\label{eq:tikhonov_functional}
-    J^\beta(a) = \|u(a) - u^\delta\|^2_{L_2} + \beta\,\|a - a^*\|^2_{H^1},
+    J^\beta(a) = \|u(a) - u^\delta\|^2_{L^2(Q)} + \beta\,\|a - a^*\|^2_{H^1(\Omega)},
 \end{equation}
 where $\beta > 0$ is the regularization parameter,
 and $a^*$ is the \emph{a priori} guess that encodes any structural knowledge about the volatility (e.g., smoothness or smile shape).
@@ -189,18 +219,22 @@ The first term penalizes any mismatch with the data,
 the second term penalizes the deviation of $a$ from $a^*$ in $H^1$,
 which promotes smoother reconstructions.
 
-The penalty norm in $H^1$ is given by
+with $\Omega = (-M,M)$ the spatial domain, so that the penalty reads
 \begin{equation*}
-    \|a - a^*\|^2_{H^1} 
-        = \int_{-M}^{M} \bigl[(a-a^*)^2 + (\partial_y(a-a^*))^2\bigr]\,dy.
+    \|a - a^*\|^2_{H^1(\Omega)}
+        = \int_{-M}^{M} \bigl[(a-a^*)^2 + \bigl(\partial_y(a-a^*)\bigr)^2\bigr]\,dy.
 \end{equation*}
+When $a$ is genuinely time dependent the same norm is taken on $Q = \Omega\times(0,T)$,
+with $\nabla$ in place of $\partial_y$.
 
 \begin{proposition}[\cite{egger2005tikhonov}, Propositions 3.1 and 3.2]
 \label{prop:tikhonov_convergence}
 For any $\beta > 0$ a minimizer $a^\delta_\beta$ of $J^\beta$ exists.
 If $\delta \to 0$ and $\beta(\delta) \to 0$ with $\delta^2/\beta(\delta) \to 0$,
 then every sequence of minimizers $\{a^{\delta_k}_{\beta(\delta_k)}\}$
-has a convergent subsequence, and every limit point is an $a^*$-minimum-norm solution.
+has a subsequence converging in $H^1(\Omega)$,
+and every limit point is an \emph{$a^*$-minimum-norm} solution,
+that is, a solution of the noise free problem at least $H^1$ distance from the prior $a^*$.
 \end{proposition}
 
 % \begin{proof}[Idea of the proof]
@@ -225,20 +259,37 @@ in our case we would like to have as data the prices of the options in any strik
 as a continuous function.
 But in practice we only have a finite number of prices, so the data is discrete.
 This makes the convergence theory more complicated,
-in particular the convergence to some $a^*-minimum-norm$ solution is guaranteed,
-but its uniqueness is not.
+in particular the convergence to some \emph{$a^*$-minimum-norm} solution is guaranteed,
+but its uniqueness is not,
+see \cite[Ch.~10 and 11]{engl_hanke_neubauer} for the general theory behind this point.
 
-\section{Gradient computation via the adjoint method}
+\section{Gradient computation via the adjoint method}\label{sec:gradient_adjoint}
 
 Before tackling the convergence of the minimization method,
 we need to compute the gradient of the Tikhonov functional $J^\beta$,
 in particular we need its Gâteaux derivative.
+This is the \emph{adjoint method}, Section 5.1 of \cite{egger2005tikhonov},
+and it is worth saying up front what it buys us.
+The derivative of $J^\beta$ at $a$ is a directional derivative,
+one number per direction $h$,
+and a discretization with $n$ degrees of freedom has $n$ basis directions,
+so reading the gradient off the definition costs $n$ linearized solves.
+The adjoint method instead identifies the gradient with a single function,
+computed from three parabolic problems,
+the forward equation \eqref{eq:inverse_pde_1} for $u(a)$,
+its linearization \eqref{eq:gateaux_derivative} for $u'(a)[h]$,
+and the backward adjoint equation \eqref{eq:adjoint_pde} for $V$,
+of which only the first and the last are needed per iteration.
+The three are implemented in \texttt{pde/forward.py}, \texttt{pde/linearized.py} and
+\texttt{pde/adjoint.py}, see Appendix \ref{app:code}.
+
 The \emph{directional derivative} of the data-fidelity term at $a$ in direction $h$ is
 \begin{equation*}
-    \frac{d}{d\varepsilon}\|u(a+\varepsilon h) - u^\delta\|^2_{L_2}\Big|_{\varepsilon=0}
-    = 2\bigl(u(a) - u^\delta,\; u'(a)[h]\bigr)_{L_2},
+    \frac{d}{d\varepsilon}\|u(a+\varepsilon h) - u^\delta\|^2_{L^2(Q)}\Big|_{\varepsilon=0}
+    = 2\bigl(u(a) - u^\delta,\; u'(a)[h]\bigr)_{L^2(Q)},
 \end{equation*}
-where $u'(a)[h] = w(\cdot, T_0)$ is the solution of the \emph{linearized} forward equation,
+which is the chain rule applied to the quadratic $\|\cdot\|^2_{L^2}$,
+and where $u'(a)[h] = w(\cdot, T_0)$ is the solution of the \emph{linearized} forward equation,
 obtained by differentiating~\eqref{eq:inverse_pde_1} in the direction $h$,
 \begin{equation}\label{eq:gateaux_derivative}
     -w_\tau + a(w_{yy} - w_y) - (r-q)\,w_y - q\,w = -h\,(u_{yy} - u_y),
@@ -254,15 +305,15 @@ Let $V(y,\tau)$ solve the backward parabolic problem
 with homogeneous Dirichlet conditions at $y = \pm M$ and integrated backward in $\tau$.
 Then the Gâteaux derivative satisfies \cite{egger2005tikhonov}
 \begin{equation*}
-    \bigl(u'(a)[h],\, u(a)-u^\delta\bigr)_{L_2}
+    \bigl(u'(a)[h],\, u(a)-u^\delta\bigr)_{L^2(Q)}
     = \int_0^{T_0}\!\!\int_{-M}^{M} h(y)\,(u_{yy}-u_y)\,V\,dy\,d\tau.
 \end{equation*}
 The regularization term, is an explicit functional of $a$,
 so its Gâteaux derivative needs no adjoint,
 we find it by differentiating the quadratic form directly gives
 \begin{equation*}
-    \frac{d}{d\varepsilon}\|a+\varepsilon h - a^*\|^2_{H^1}\Big|_{\varepsilon=0}
-    = 2(a-a^*,h)_{H^1}
+    \frac{d}{d\varepsilon}\|a+\varepsilon h - a^*\|^2_{H^1(\Omega)}\Big|_{\varepsilon=0}
+    = 2(a-a^*,h)_{H^1(\Omega)}
     = 2\int_{-M}^{M}\bigl[(a-a^*)h + \partial_y(a-a^*)\partial_y h\bigr]dy.
 \end{equation*}
 Adding this to the data term above, the total gradient direction (in $L^2$ sense) is
@@ -280,7 +331,8 @@ Writing the data discrepancy as $\|F(a) - u^\delta\|^2$ and using
     = 2\bigl(F'(a)h,\; F(a) - u^\delta\bigr)
     = 2\bigl(h,\; F'(a)^*(F(a) - u^\delta)\bigr),
 \end{equation*}
-the solution $V$ of \eqref{eq:adjoint_pde} represents $F'(a)^*(F(a) - u^\delta)$ (Remark 4.2 of \cite{egger2005tikhonov}).
+the solution $V$ of \eqref{eq:adjoint_pde} represents $F'(a)^*(F(a) - u^\delta)$,
+see \cite[Remark 4.2]{egger2005tikhonov}.
 The same adjoint controls the speed of convergence.
 
 The convergence results exposed in proposition \ref{prop:tikhonov_convergence} can be quite slow,
@@ -295,8 +347,8 @@ And $F$ is Frechet differentiable and $F'$ is Lipschitz continuous in a neighbor
 Though in \cite{egger2005tikhonov} is mentioned that $F$ just needs to be Gateaux differentiable and Lipschitz continuous in some directions,
 so we will be able to use the Gateaux derivative we just computed.
 
-Proposition 4.1 of \cite{egger2005tikhonov} and $\|w\|$ small enough,
-the choice $\beta \sim \delta$ gives convergence rates
+By \cite[Proposition 4.1]{egger2005tikhonov}, for $\|w\|$ small enough,
+the choice $\beta \sim \delta$ gives the convergence rates
 \begin{equation}\label{eq:convergence_rate}
     \|a^\delta_\beta - a^\dagger\| = O(\sqrt{\delta}),
     \qquad
@@ -307,14 +359,20 @@ The abstract condition \eqref{eq:source_condition} is hard to check directly,
 so Egger and Engl derive interpretable sufficient conditions by restricting to a single maturity and a time independent volatility,
 $a(\tau, y) = a(y)$.
 In that setting they prove two rate results of the form \eqref{eq:convergence_rate}.
-First, Theorem 4.1 treats observations of prices,
-with the penalty strengthened to the $H^2$ norm.
-Second, Theorem 4.2 keeps the $H^1$ penalty but assumes that the derivative of the option price is also observable,
+First, \cite[Theorem 4.1]{egger2005tikhonov} treats observations of prices,
+with the penalty strengthened to the $H^2(\Omega)$ norm.
+Second, \cite[Theorem 4.2]{egger2005tikhonov} keeps the $H^1(\Omega)$ penalty
+but assumes that the derivative of the option price is also observable,
 which is realistic because $C_K = e^{-y}u_y$ is the price of a digital call and is quoted on the market.
 
-In both, the source function must be smooth and decay like a Gaussian at both ends,
-with $g = \partial_y^4 w - \partial_y^2 w + w$ for the first result and $g = -w_{yy} + w$ for the second,
-the requirement is $|g|, |g_y|, |g_{yy}| = O(e^{-B' y^2})$ as $|y| \to \infty$.
+In both, the source function must be smooth and decay like a Gaussian at both ends.
+Writing $g = \partial_y^4 w - \partial_y^2 w + w$ for the first result
+and $g = -\partial_y^2 w + w$ for the second, the requirement is
+\begin{equation}\label{eq:source_decay}
+    |g|,\ |\partial_y g|,\ |\partial_y^2 g| = O\bigl(e^{-B' y^2}\bigr)
+    \qquad \text{as } |y| \to \infty,
+\end{equation}
+for some $B' > 0$.
 
 This decay condition is the precise form of the wing dynamics,
 and Egger and Engl argue the same in their concluding remarks,
@@ -329,7 +387,7 @@ which is why the priors in the experiments below are chosen to flatten away from
 Two points carry over to the rest of the chapter, and neither is proved by the theorems above.
 The functional we minimize keeps the $H^1$ penalty with price data only,
 which is the setting of the stability and convergence results but not literally of either rate theorem,
-since those need the stronger $H^2$ penalty or the added derivative data.
+since those need the stronger $H^2(\Omega)$ penalty or the added derivative data.
 And the rate analysis is proved only for a time independent volatility,
 so the genuinely time dependent surface $a(y,\tau)$ we calibrate in Section~\ref{sec:market_surface} lies outside its scope.
 
@@ -355,9 +413,13 @@ For exact data (i.e. no noise, $\delta = 0$) a single fixed $\beta$ is used.
 \section{Variational forms and discretization}\label{sec:variational_forms}
 
 The forward PDE \eqref{eq:inverse_pde_1} is discretized in space with
-$P_1$ finite elements on a mesh of $[-M, M]$ and in time with the
+$P_1$ Lagrange finite elements on a uniform mesh of $[-M, M]$ and in time with the
 implicit Euler scheme.
-We can find the variational form by multiplying by a test function $v \in H^1_0(-M,M)$ and integrating by parts gives
+Both are assembled and solved with FEniCSx \cite{fenicsx},
+the mesh, the element degree and the domain truncation $M$ are collected in
+Appendix \ref{subsec:discretization_details},
+and the solvers are \texttt{pde/forward.py} and \texttt{pde/adjoint.py} of Appendix \ref{app:code}.
+Multiplying by a test function $v \in H^1_0(-M,M)$ and integrating by parts gives the variational form
 \begin{equation}\label{eq:variational_forward_eq}
     \frac{d}{d\tau}\int_{-M}^{M} u\,v\,dy
     = -\int_{-M}^{M} a\,u_y\,v_y\,dy
@@ -384,7 +446,15 @@ which is defined by
     = \,\phi\bigl(a^n;\,u^n,\,v\bigr)
     \qquad\text{for all } v \in V_h \cap H^1_0(-M,M),
 \end{equation}
-where $u^n = u(\cdot,\tau_n)$ and $\phi(a^n;u^n,v)$ is the right-hand side of the variational form \eqref{eq:variational_forward_eq}.
+for $n = 1,\dots,N$, where $u^n = u(\cdot,\tau_n)$, $\Delta\tau = \tau_n - \tau_{n-1}$,
+and $\phi$ is the right-hand side of \eqref{eq:variational_forward_eq},
+\begin{equation*}
+    \phi(a^n; u^n, v)
+    = -\int_{-M}^{M}\!\! a^n u^n_y v_y\,dy
+      -\int_{-M}^{M}\!\! (\partial_y a^n)\,u^n_y v\,dy
+      -\int_{-M}^{M}\!\! (a^n + r - q)\,u^n_y v\,dy
+      -\int_{-M}^{M}\!\! q\,u^n v\,dy.
+\end{equation*}
 This gives a linear system for each step,
 is unconditionally stable for this class of parabolic operators, see \cite{thomee_galerkin}.
 
@@ -396,22 +466,24 @@ However, as previously stated,
 in practice option prices are observed at finitely many maturities $\tau_1 < \cdots < \tau_N$,
 and anything finer than the gaps between quoted maturities is not identifiable.
 We therefore choose to model $a$ as piecewise constant in time,
+on $K \le N$ intervals whose edges are taken among the observed maturities,
 \begin{equation}\label{eq:coefficient_slices}
     a(y,\tau) = \sum_{n=1}^{K} a_n(y)\,\chi_{(\tau_{n-1},\,\tau_n]}(\tau),
     \qquad a_n \in H^1(-M,M), \quad \underline{a} \le a_n \le \bar a,
 \end{equation}
-with $\tau_0 = 0$.
-The unknown is the stack of spatial slices $(a_1, \dots, a_N)$,
-in the case $N = 1$ recovers the time-independent setting of \cite{egger2005tikhonov}.
+for $n = 1,\dots,K$ with $\tau_0 = 0$.
+In the experiments below we take one slice per observed maturity, $K = N$.
+The unknown is the stack of spatial slices $(a_1, \dots, a_K)$,
+and $K = 1$ recovers the time-independent setting of \cite{egger2005tikhonov}.
 The Tikhonov functional is adapted accordingly
 \begin{equation}\label{eq:surface_functional}
-    J(a) = \sum_{j} \bigl\| u(a)(\cdot,\tau_j) - u^\delta_j \bigr\|^2_{L_2(\Omega_j)}
-         + \beta_y \sum_{n} \| a_n - a^*_n \|^2_{H^1}
-         + \beta_\tau \sum_{n} \| a_n - a_{n-1} \|^2_{L_2},
+    J(a) = \sum_{j=1}^{N} \bigl\| u(a)(\cdot,\tau_j) - u^\delta_j \bigr\|^2_{L^2(\Omega_j)}
+         + \beta_y \sum_{n=1}^{K} \| a_n - a^*_n \|^2_{H^1(\Omega)}
+         + \beta_\tau \sum_{n=2}^{K} \| a_n - a_{n-1} \|^2_{L^2(\Omega)},
 \end{equation}
 where $\Omega_j$ is the observed strike band at maturity $\tau_j$.
 The $H^1$ term smooths in strike,
-the new $L_2$ term penalizes jumps between consecutive slices.
+the new $L^2$ term penalizes jumps between consecutive slices.
 
 \section{Minimization Algorithm}
 
@@ -423,18 +495,19 @@ Independent of the number of degrees of freedom.
 
 \subsection{Verification of the discrete adjoint gradient}\label{sec:adjoint_verification}
 
-The adjoint gradient is verified by two tests.
+The adjoint gradient is verified by two tests,
+both implemented in \texttt{derivative\_test.py}, see Appendix \ref{app:code}.
 
-\paragraph{Tangent-linear/adjoint duality.}
+The first is an exact duality check between the linearized and the adjoint solvers.
 Write the data-fidelity term as
 \begin{equation*}
-    J_d(a)=\|u(a)-u^\delta\|^2_{L_2}
+    J_d(a)=\|u(a)-u^\delta\|^2_{L^2(Q)}
 \end{equation*}
 with residual $r = u(a)-u^\delta$.
 The gradient returned by the adjoint solve should satisfy
 \begin{equation*}
     \bigl\langle \nabla J_d(a),\, h\bigr\rangle_{\mathbb{R}^n}
-    = 2\bigl(r,\; u'(a)[h]\bigr)_{L_2}
+    = 2\bigl(r,\; u'(a)[h]\bigr)_{L^2(Q)}
 \end{equation*}
 for every direction $h$,
 with the right-hand side computed separately from the linearized solve \eqref{eq:gateaux_derivative}.
@@ -443,7 +516,7 @@ so if it holds the discrete adjoint is the exact transpose of the linearized for
 For a random $h$ on the Example~1 grid the two sides differ by $2.3\times10^{-15}$,
 i.e. at the level of rounding error.
 
-\paragraph{Taylor remainder test.}
+The second is a Taylor remainder test on the full functional.
 When the gradient is correct, the first-order Taylor remainder of the full functional decays
 one order faster in $t$ than the zeroth-order one
 \begin{equation*}
@@ -478,7 +551,8 @@ The remainder $R_1$ falls at rate $\approx 2$, as it should when $\nabla J$ is e
 
 \section{Numerical experiment - Example 1}\label{sec:egger_ex1}
 
-We reproduce \emph{Example 1} of \cite{egger2005tikhonov},
+We reproduce \cite[Example 1]{egger2005tikhonov},
+implemented in \texttt{examples/example1.py}, see Appendix \ref{app:code},
 where we try to recover a constant volatility on $y \in [-3,3]$ ($M = 3$), $\tau \in [0,1]$,
 with $r = q = 0$ and spot $S_0 = 1000$.
 \footnote{
@@ -588,7 +662,8 @@ thus recovering the true value would be impossible in those cases.
 
 \subsection{Numerical experiment - Example 2}
 
-Example 2 of \cite{egger2005tikhonov} tries to show the importance of regularization.
+\cite[Example 2]{egger2005tikhonov} tries to show the importance of regularization,
+we implement it in \texttt{examples/example2.py}, see Appendix \ref{app:code}.
 The set up is similar to example 1,
 but its true coefficient $a^\dagger(y)$ is the oscillatory profile near ATM
 \begin{equation}\label{eq:egger_ex2_true}
@@ -638,94 +713,76 @@ specially in the wings where the data is weak and the prior dominates the soluti
 \section{Numerical experiment - a local volatility surface from market data}\label{sec:market_surface}
 
 Examples 1 and 2 use synthetic data and a time independent coefficient $a^\dagger$.
-We now try to calibrate a full surface $a(y,\tau)$ from real market quotes, of the S\&P 500 index,
-as we did with implied volatility.
-This goes past the results of Section \ref{sec:convergence_rates},
-where the rate theory assumes a time independent coefficient,
-here the unknown is genuinely time dependent,
-so the surface fit is a numerical extension rather than a covered case,
-we have not proved convergence rates for this setting.
+We now calibrate a full surface $a(y,\tau)$ from real market quotes of the S\&P 500 index,
+the same data we used for the implied volatility surface of Section \ref{sec:impl_vol_surface}.
+The rate theory of Section \ref{sec:convergence_rates} assumes a time independent coefficient,
+so here we have no convergence rate,
+the surface fit is a numerical experiment.
+The script is \texttt{examples/example4\_surface.py}, see Appendix \ref{app:code}.
 
-Like in the implied volatility calibration of Section \ref{sec:impl_vol_surface},
-the data are SPY European option quotes from 30 April 2026,
-with spot $S_0 = 720.65$.
-We use eleven expirations,
-with maturities $\tau$ from $0.10$ to $0.88$ years.
-For each expiration the risk free rate,
-the dividend yield and the implied volatility come from the pipeline of Appendix \ref{app:impl_vol},
-the Treasury curve for $r$,
-put call parity for $q$,
-and the out of the money composite for the smile.
-Each smile is restricted to the moneyness band $0.8 \le K/S_0 \le 1.2$,
-where the quotes are more liquid.
-We keep only expirations with at least twenty five strikes in this band,
-a sparser expiration is under-determined.
-We also drop two expirations that fall within two weeks of a kept one,
-30 August and 31 December 2026,
-whose slice would duplicate its neighbour rather than add information.
+The data are SPY European option quotes from 30 April 2026, with spot $S_0 = 720.65$,
+on eleven expirations with maturities $\tau$ from $0.10$ to $0.88$ years.
+The rate, the dividend yield and the smile of each expiration come from the pipeline of
+Appendix \ref{app:impl_vol}.
+We keep the moneyness band $0.8 \le K/S_0 \le 1.2$, where the quotes are liquid,
+that is, quoted with a narrow bid-ask spread and traded in volume,
+so their mid price carries information rather than the width of the spread.
+Appendix \ref{subsec:market_data_details} lists the remaining filters.
 
-The surface is held as one spatial slice per maturity,
-which is the parametrization \eqref{eq:coefficient_slices} of Section \ref{sec:time_dependent_a},
-we do not fit the maturities one at a time nor interpolate between their smiles.
-The forward equation is
-marched once from $0$ to the last maturity, the coefficient taking the value $a_k$ on the $k$th
-interval, and the whole time trajectory of the solution is kept and read off at each maturity.
-Every observed price is therefore a sample of one and the same evolving solution, and the
-unknown is the stack of slices $(a_1,\dots,a_K)$ solved for jointly, at the cost of one forward
-solve and one backward adjoint sweep per iteration whatever the number of slices. The
-functional minimized is the space and time version~\eqref{eq:surface_functional} announced
-there, with $\Omega_j$ the band of strikes quoted at maturity $\tau_j$, the $H^1$ term
-smoothing each slice in strike and the $L_2$ term penalizing the jump between consecutive
-slices. The triangular
-structure noted in Section~\ref{sec:time_dependent_a} is what makes this well posed maturity by
-maturity: the earliest expiration constrains the first slice, the next one the second, and so
-on. The prior $a^*_k$ of each slice deserves care.
-The instinct is to seed it with that maturity's implied variance $\tfrac12\sigma_{\mathrm{iv}}^2$,
-but the $H^1$ term penalizes the difference of \emph{slopes} $\partial_y(a_k - a^*_k)$, and by
-the factor of two derived below (Section~\ref{sec:factor_two}) the implied skew is only half the
-local skew. Such a prior would anchor the reconstruction at the wrong slope and flatten the
-recovered skew toward the implied one wherever the data are weak. We instead seed $a^*_k$ with
-the local volatility recovered from the smile by inverting the short maturity relation~\eqref{eq:bbf_harmonic},
-which on differentiating $y/\sigma_{\mathrm{iv}} = \int_0^y dx/\sigma_{\mathrm{loc}}$ gives
+The unknown is the stack of spatial slices $(a_1,\dots,a_K)$ of \eqref{eq:coefficient_slices},
+one per maturity, solved for jointly by minimizing \eqref{eq:surface_functional}.
+The forward equation is marched once to the last maturity and read off at each one,
+so every quote samples the same evolving solution,
+and one forward solve with one adjoint sweep per iteration gives the whole gradient.
+
+The prior $a^*_k$ deserves care.
+Since $a = \tfrac12\sigma^2$, the instinct is to seed slice $k$ with the implied variance
+$\tfrac12\sigma_{\mathrm{iv}}^2$ of that maturity, which is at least in the right units.
+This is the wrong choice.
+The $H^1$ term penalizes the difference of slopes $\partial_y(a_k - a^*_k)$,
+and by the factor of two of Section \ref{sec:factor_two} the implied skew is half the local one,
+so the reconstruction would be anchored at half the correct slope wherever the data are weak.
+We instead seed with the local volatility that the smile itself implies.
+Differentiating the short maturity relation \eqref{eq:bbf_harmonic} of
+\cite{berestycki_busca_florent} in $y$ and solving for $\sigma_{\mathrm{loc}}$ gives
 \begin{equation}\label{eq:bbf_inversion}
     \sigma_{\mathrm{loc}}(y) \;=\; \frac{\sigma_{\mathrm{iv}}(y)}
-        {1 - y\,\partial_y\sigma_{\mathrm{iv}}(y)/\sigma_{\mathrm{iv}}(y)}.
+        {1 - y\,\partial_y\sigma_{\mathrm{iv}}(y)/\sigma_{\mathrm{iv}}(y)},
 \end{equation}
-This agrees with the smile at the money and doubles its skew there, consistent
-with~\eqref{eq:factor_two}; outside the band it is flattened. Interest and dividend enter as
-piecewise constant forward rates recovered from the zero rates.
+which agrees with the smile at the money and doubles its skew there,
+as \eqref{eq:factor_two_derivative} of the next section requires.
+Appendix \ref{subsec:prior_details} collects the details of the inversion.
 
-Figures~\ref{fig:egger_surface} to~\ref{fig:egger_reprice} show the result for
-$\beta_y = 0.1$ and $\beta_\tau = 1$. The
-recovered surface has the shape one expects: a pronounced negative skew, with local volatility
-running from about $0.15$ at the money at the shortest maturity to $0.23$ at the longest, near
-$0.12$ on the upside, and rising sharply on the downside, to about $0.40$ at the long
-maturities and much steeper at the short end, close to $0.95$ two tenths of log-moneyness below
-the money, where the skew is strongest. Repricing the quotes at the calibrated surface gives a median relative error of
-$0.13\%$ across the eleven maturities, with the maximum over liquid strikes staying below $1\%$ at
-every expiration. This is markedly tighter than the naive prior $a^* = \tfrac12\sigma_{\mathrm{iv}}^2$,
-which gives a median of $0.20\%$ and maxima above $2\%$: that prior anchors the skew at half its
-correct value, so wherever the quotes carry little information the $H^1$ penalty pulls the
-reconstruction off the prices, and the theory-consistent prior~\eqref{eq:bbf_inversion} removes
-the bias. As in the synthetic examples, the surface is well determined near the money and
-on the downside, where option prices are large and informative, and relaxes towards the prior
-on the upside wing, where out of the money call prices are close to zero and constrain the
-coefficient only weakly. This is the same ill-posedness of Section~\ref{sec:convergence_rates},
-now seen in real data.
+Figures \ref{fig:egger_surface} to \ref{fig:egger_reprice} show the result
+for $\beta_y = 0.1$ and $\beta_\tau = 1$.
+The surface has the shape one expects, a pronounced negative skew,
+with local volatility running from $0.15$ at the money at the shortest maturity
+to $0.23$ at the longest, near $0.12$ on the upside,
+and rising on the downside to $0.40$ at the long maturities and to $0.95$ at the short end.
+Repricing the quotes gives a median relative error of $0.13\%$,
+with the maximum over liquid strikes below $1\%$ at every expiration.
+The naive prior $\tfrac12\sigma_{\mathrm{iv}}^2$ gives a median of $0.20\%$ and maxima above $2\%$,
+so \eqref{eq:bbf_inversion} does remove the bias.
+As in the synthetic examples the surface is well determined near the money and on the downside,
+and relaxes towards the prior on the upside wing where call prices are close to zero,
+the ill-posedness of Section \ref{sec:convergence_rates} seen on real data.
 
-The calibrated surface is free of arbitrage, and here the direct approach has a structural
-advantage. Because it reproduces the quotes by solving the forward Dupire equation with a local
-variance the optimizer keeps strictly positive ($a \ge 10^{-8}$), the output is the price
-surface of a genuine diffusion, so the strike and calendar arbitrages of
-Section~\ref{sec:no_arbitrage} cannot even be represented. This is unlike the implied volatility
-route of Appendix~\ref{app:impl_vol}, where a fitted surface with the slightest butterfly or
-calendar violation feeds a negative local variance into the Dupire formula and the
-no-arbitrage conditions must be imposed by hand. We verify that the discrete surface inherits
-this: the recovered local volatility stays above $0.08$ everywhere, the risk-neutral density
-$\partial^2_{KK}\mathcal{C}$ is non-negative across the observed band at every maturity, and the
-total implied variance $\sigma_{\mathrm{iv}}^2\tau$ is strictly increasing in maturity at every
-moneyness (Figure~\ref{fig:egger_arbitrage}), the two conditions Bergomi records for a local
-volatility surface~\cite{bergomi_stochastic_vol}.
+The calibrated surface is free of arbitrage by construction.
+The optimizer keeps the local variance strictly positive, $a \ge 10^{-8}$,
+and the prices solve the forward Dupire equation with that coefficient,
+so the output is the price surface of a genuine diffusion
+and the two conditions of Section \ref{sec:no_arbitrage} cannot be violated.
+The implied volatility route of Appendix \ref{app:impl_vol} carries no such guarantee,
+there the smallest butterfly or calendar violation in the fitted surface
+feeds a negative local variance into the Dupire formula.
+Figure \ref{fig:egger_arbitrage}, produced by \texttt{examples/example7\_arbitrage.py},
+confirms it on the discrete surface,
+the risk-neutral density $\partial^2_{KK}\mathcal{C}$ is non-negative across the observed band
+at every maturity,
+and the total implied variance $\sigma_{\mathrm{iv}}^2\tau$ increases in maturity at every moneyness.
+
+Near the money the recovered local volatility is visibly steeper in strike than the market smile.
+This is a definite relation between the two skews, which we make precise next.
 
 \begin{figure}[h]
     \centering
@@ -783,7 +840,8 @@ we can rewrite it as
 see \cite{bergomi_stochastic_vol} Chapter 2.
 
 To verify such relationship numerically,
-we will check \eqref{eq:factor_two_derivative} directly on the calibrated surfaces.
+we will check \eqref{eq:factor_two_derivative} directly on the calibrated surfaces,
+with \texttt{examples/example5\_skew.py} of Appendix \ref{app:code}.
 For each maturity $\tau$,
 we fit a quadratic to the local volatility and to the smile in a narrow window $|y| \le 0.05$ around the ATM and read the slope at $y = 0$.
 In figure \ref{fig:egger_skew} we can see two of the eleven maturities,
@@ -838,6 +896,7 @@ agree on the price of quoted maturities by construction.
 But they differ on contracts that falls between them.
 
 To test how each method prices out of sample,
+in \texttt{examples/example6\_holdout.py} of Appendix \ref{app:code},
 we entirely remove one interior expiration from the data,
 the December 2026 quotes at $\tau = 0.63$,
 and price it out of sample two ways.

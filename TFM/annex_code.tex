@@ -1,0 +1,116 @@
+% ----------------------------------
+%   Appendix C: Source code
+% ----------------------------------
+
+\chapter{Source code}
+\label{app:code}
+
+Every figure, table and number reported in this work is reproducible from the repository
+\href{https://github.com/M315/TFM}{\texttt{github.com/M315/TFM}}.
+This appendix gives the layout of the code and says which script produces what,
+so that any result in the main text can be traced back to the routine that computed it.
+Appendices \ref{app:impl_vol} and \ref{app:local_vol} discuss the choices made inside these
+routines, here we only describe the structure.
+
+The code is organized in two packages under \texttt{scripts/}.
+The first builds the implied volatility surface from the raw option chain,
+the second calibrates the local volatility surface from the prices that the first exports.
+They run in separate conda environments,
+because the finite element solver uses a legacy FEniCS stack without \texttt{pandas},
+which is why the hand off between them is a file on disk rather than a function call.
+
+\section{Implied volatility pipeline}
+\label{subsec:code_impl_vol}
+
+\begin{verbatim}
+scripts/impl_vol/
+    data.py           option chains from Yahoo Finance, cached by date
+    rates.py          US Treasury par curve, bootstrapped to zero rates
+    implied_vol.py    Black-Scholes prices, vega, implied vol inversion
+    main.py           the implied volatility surface and smile slices
+    diag_naive_q.py   the three stage dividend yield calibration
+    export_smiles.py  exports the per expiration call price smiles
+\end{verbatim}
+
+The dependency flow is linear.
+\texttt{data.py} and \texttt{rates.py} fetch and cache the raw inputs,
+\texttt{implied\_vol.py} provides the pricing and inversion used by everything else,
+and \texttt{main.py}, \texttt{diag\_naive\_q.py} and \texttt{export\_smiles.py} are the three
+entry points.
+The methodology behind them is Appendix \ref{app:impl_vol}.
+
+\section{Local volatility calibration}
+\label{subsec:code_local_vol}
+
+\begin{verbatim}
+scripts/local_vol_egger/
+    pde/
+        forward.py     forward Dupire solve, implicit Euler, P1 elements
+        linearized.py  linearized (sensitivity) solve, one direction h
+        adjoint.py     backward adjoint solve, accumulates the gradient
+    optimization/
+        vol.py         the coefficient a(y,tau) as a stack of spatial slices
+        tikhonov.py    functional, gradient, and the L-BFGS-B driver
+        surface.py     the time dependent extension, one slice per maturity
+    utils.py           Black-Scholes helpers, meshes, smile handling
+    derivative_test.py gradient checks (duality and Taylor)
+    main.py            entry point, selects and runs one example
+    examples/
+        example1.py              Example 1, cases A to D
+        example2.py              Example 2, oscillatory coefficient
+        example3_market.py       single maturity fit on market data
+        example4_surface.py      the calibrated market surface
+        example5_skew.py         local vs implied skew, factor of two
+        example6_holdout.py      the out of sample pricing test
+        example7_arbitrage.py    density and calendar arbitrage check
+        example8_discounting.py  the two normalizations of u
+\end{verbatim}
+
+The three modules in \texttt{pde/} are the three parabolic problems of
+Section \ref{sec:gradient_adjoint}.
+\texttt{optimization/tikhonov.py} assembles the functional \eqref{eq:tikhonov_functional} and
+calls \texttt{pde/forward.py} and \texttt{pde/adjoint.py} once per iteration to obtain the
+gradient \eqref{eq:tikhonov_gradient}.
+\texttt{pde/linearized.py} is not used in the calibration itself,
+it exists so that \texttt{derivative\_test.py} can check the adjoint against an independent
+computation of the same directional derivative.
+\texttt{optimization/surface.py} wraps the same machinery for the stack of slices
+\eqref{eq:coefficient_slices} and minimizes \eqref{eq:surface_functional}.
+Each file in \texttt{examples/} is self contained and writes its own figures.
+
+\section{Where each result comes from}
+\label{subsec:code_results_map}
+
+\begin{table}[h!]
+    \centering
+    \begin{tabular}{l l}
+        \toprule
+        Result & Script \\
+        \midrule
+        Implied volatility surface and smiles, Chapter \ref{ch:bs}
+            & \texttt{impl\_vol/main.py} \\
+        Dividend yield calibration, Appendix \ref{app:impl_vol}
+            & \texttt{impl\_vol/diag\_naive\_q.py} \\
+        Call price smiles used as data
+            & \texttt{impl\_vol/export\_smiles.py} \\
+        Gradient verification, Table \ref{tab:taylor_test}
+            & \texttt{local\_vol\_egger/derivative\_test.py} \\
+        Example 1, Figures \ref{fig:egger_ex1_B} to \ref{fig:egger_ex1_BD}
+            & \texttt{examples/example1.py} \\
+        Example 2, Figure \ref{fig:egger_ex2}
+            & \texttt{examples/example2.py} \\
+        Market surface, Figures \ref{fig:egger_surface} to \ref{fig:egger_reprice}
+            & \texttt{examples/example4\_surface.py} \\
+        No-arbitrage check, Figure \ref{fig:egger_arbitrage}
+            & \texttt{examples/example7\_arbitrage.py} \\
+        Factor of two, Figure \ref{fig:egger_skew} and Table \ref{tab:egger_skew}
+            & \texttt{examples/example5\_skew.py} \\
+        Out of sample test, Figure \ref{fig:egger_holdout}
+            & \texttt{examples/example6\_holdout.py} \\
+        Discounted normalization, Appendix \ref{subsec:discounted_normalization}
+            & \texttt{examples/example8\_discounting.py} \\
+        \bottomrule
+    \end{tabular}
+    \caption{Each reported result and the script that produces it.}
+    \label{tab:code_map}
+\end{table}
