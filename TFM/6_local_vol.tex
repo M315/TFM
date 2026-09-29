@@ -21,11 +21,13 @@ We are going to introduce the Local Volatility Model mainly following \cite[Ch. 
 The \textbf{local volatility model} is the simplest and most widely used volatility model in derivatives pricing.
 It extends the Black-Scholes framework by allowing the instantaneous volatility to be a deterministic function of both time and the spot price of the underlying asset,
 \begin{equation*}
-    \sigma = \sigma(t, S).
+    \sigma = \lvol(t, S).
 \end{equation*}
+We write $\lvol$ for the local volatility and keep $\ivol$ for the implied volatility of Chapter \ref{ch:bs},
+to identify them clearly.
 So the dynamics of the underlying asset under the local volatility model are given by the following stochastic differential equation,
 \begin{equation*}
-    \frac{dS_t}{S_t} = (r - q)\, dt + \sigma(t, S_t)\, dW_t,
+    \frac{dS_t}{S_t} = (r - q)\, dt + \lvol(t, S_t)\, dW_t,
 \end{equation*}
 and the pricing PDE is identical to the Black-Scholes PDE,
 with the deterministic volatility function replacing the constant volatility
@@ -33,7 +35,7 @@ with the deterministic volatility function replacing the constant volatility
     \frac{\partial f}{\partial t} =
         r f(t, S)
         - (r - q) S \frac{\partial f}{\partial S}
-        - \frac{1}{2} \sigma^2(t, S) S^2 \frac{\partial^2 f}{\partial S^2},
+        - \frac{1}{2} \lvol^2(t, S) S^2 \frac{\partial^2 f}{\partial S^2},
 \end{equation*}
 
 \subsection{Market model}
@@ -54,7 +56,7 @@ since it is calibrated to match the vanilla option prices observed in the market
 \section{Dupire Equation}
 
 The Dupire equation, introduced in \cite{dupire_pricing_smile},
-expresses the local volatility function $\sigma(t, S)$ directly in terms of derivatives
+expresses the local volatility function $\lvol(t, S)$ directly in terms of derivatives
 of call option prices with respect to strike and maturity.
 As we have said previously,
 we present the derivation following \cite{bergomi_stochastic_vol}.
@@ -196,11 +198,11 @@ A consequence is that the smile alone does not determine $\sigma_t$:
 two processes $\sigma_t$ and $\sigma_t'$ generate the same vanilla smile if and only if
 $\E[\sigma_T^2 \mid S_T = K] = \E[\sigma_T^{\prime 2} \mid S_T = K]$ for all $K$ and $T$.
 
-In the local volatility model, where $\sigma_t \equiv \sigma(t, S_t)$,
-the conditional expectation reduces to $\sigma(t,S)^2$,
+In the local volatility model, where $\sigma_t \equiv \lvol(t, S_t)$,
+the conditional expectation reduces to $\lvol(t,S)^2$,
 and evaluating at $K = S$, $T = t$ gives the \textbf{Dupire formula}:
 \begin{equation}\label{eq:dupire_formula}
-    \sigma(t, S)^2 = 2\,\frac{
+    \lvol(t, S)^2 = 2\,\frac{
         \dfrac{\partial C}{\partial T} + qC + (r-q)\,K\,\dfrac{\partial C}{\partial K}
     }{
         K^2\,\dfrac{\partial^2 C}{\partial K^2}
@@ -211,12 +213,12 @@ equation~\eqref{eq:dupire_formula} uniquely determines the local volatility func
 
 \subsection{Forward equation}
 
-In the local volatility model the left hand side of \eqref{eq:dupire_formula} is $\sigma^2(T, K)$,
+In the local volatility model the left hand side of \eqref{eq:dupire_formula} is $\lvol^2(T, K)$,
 so for a known local volatility function that same identity can be rearranged
 into the \textbf{Dupire forward equation}:
 \begin{equation}\label{eq:dupire_forward}
     \frac{\partial C}{\partial T} + (r-q)\,K\,\frac{\partial C}{\partial K}
-    - \frac{\sigma^2(T,K)}{2}\,K^2\,\frac{\partial^2 C}{\partial K^2} = -qC,
+    - \frac{\lvol^2(T,K)}{2}\,K^2\,\frac{\partial^2 C}{\partial K^2} = -qC,
     \qquad (K, T) \in (0, \infty) \times (0, T_{\max}],
 \end{equation}
 where $T_{\max}$ is the longest maturity of interest.
@@ -306,35 +308,35 @@ following \cite[Ch. 2]{bergomi_stochastic_vol} and \cite{derman_vol_smile}.
 
 \subsection{Implied volatility as an average of local volatility}
 
-Let $C_{\hat{\sigma}}$ be the Black-Scholes price of a call option with strike $K$ and maturity $T$
-computed with a constant volatility equal to its implied volatility $\hat{\sigma}(K,T)$
+Let $C_{\mathrm{BS}}$ be the Black-Scholes price of a call option with strike $K$ and maturity $T$
+computed with a constant volatility equal to its implied volatility $\ivol(K,T)$
 as defined in \eqref{eq:implied_vol}.
 Delta hedging this option with the Black-Scholes model, i.e. using the implied volatility,
-while the spot actually diffuses with the local volatility $\sigma(t,S)$ generates,
+while the spot actually diffuses with the local volatility $\lvol(t,S)$ generates,
 between two rehedges, the gamma/theta non-zero P\&L given by
 \begin{equation*}
-    \frac{1}{2}\,S_t^2\,\frac{\partial^2 C_{\hat{\sigma}}}{\partial S^2}
-    \left(\sigma(t, S_t)^2 - \hat{\sigma}^2\right) dt .
+    \frac{1}{2}\,S_t^2\,\frac{\partial^2 C_{\mathrm{BS}}}{\partial S^2}
+    \left(\lvol(t, S_t)^2 - \ivol^2\right) dt .
 \end{equation*}
 By construction the two models price the option identically,
 so the discounted P\&L over time has zero expected value under the local volatility dynamics,
 which after rearranging gives \cite[Ch. 2]{bergomi_stochastic_vol}
 \begin{equation}\label{eq:iv_gamma_average}
-    \hat{\sigma}(K,T)^2
+    \ivol(K,T)^2
     = \frac{
         \E\!\left[\displaystyle\int_0^T e^{-rt}\,S_t^2\,
-            \frac{\partial^2 C_{\hat{\sigma}}}{\partial S^2}\,\sigma(t, S_t)^2\,dt\right]
+            \frac{\partial^2 C_{\mathrm{BS}}}{\partial S^2}\,\lvol(t, S_t)^2\,dt\right]
       }{
         \E\!\left[\displaystyle\int_0^T e^{-rt}\,S_t^2\,
-            \frac{\partial^2 C_{\hat{\sigma}}}{\partial S^2}\,dt\right]
+            \frac{\partial^2 C_{\mathrm{BS}}}{\partial S^2}\,dt\right]
       },
 \end{equation}
 the expectation being taken over paths of the local volatility model.
 
-Thus implied variance, $\hat{\sigma}^2$,
-is an average of the local variance, $\sigma(t, S)^2$, along the paths,
+Thus implied variance, $\ivol^2$,
+is an average of the local variance, $\lvol(t, S)^2$, along the paths,
 weighted by the gamma of the option.
-The relation is implicit, since $\hat{\sigma}$ appears in the weights on the right,
+The relation is implicit, since $\ivol$ appears in the weights on the right,
 so it is not a practical pricing formula,
 but it gives the intuition that an implied volatility is not a local volatility at a point,
 but a smoothed version of it over the region of $(t, S)$ where the option carries gamma.
@@ -349,14 +351,14 @@ Define the at the money forward, ATMF,
 skew $\mathcal{S}_T$ as the slope of the implied volatility smile
 with respect to log-strike, evaluated at the forward $F_T = S_0 e^{(r-q)T}$:
 \begin{equation}\label{eq:atmf_skew}
-    \mathcal{S}_T := \left.\frac{\partial \hat{\sigma}(K,T)}{\partial \ln K}\right|_{K=F_T}.
+    \mathcal{S}_T := \left.\frac{\partial \ivol(K,T)}{\partial \ln K}\right|_{K=F_T}.
 \end{equation}
 
 Consider a local volatility function that is, near the forward, linear in log-moneyness
 \begin{equation}\label{eq:lv_skew_expansion}
-    \sigma(t, S) = \sigma_0 + \alpha(t)\, x + \cdots, \qquad x = \ln\left(\frac{S}{F_t}\right),
+    \lvol(t, S) = \sigma_0 + \alpha(t)\, x + \cdots, \qquad x = \ln\left(\frac{S}{F_t}\right),
 \end{equation}
-where $\sigma_0 = \sigma(0, S_0)$ is the level of the local volatility
+where $\sigma_0 = \lvol(0, S_0)$ is the level of the local volatility
 and $\alpha(t)$ is its skew at time $t$.
 
 To first order in $\alpha$, the implied ATMF skew is given by \cite[Ch. 2]{bergomi_stochastic_vol}
@@ -378,20 +380,20 @@ smooths out the local volatility surface, making the implied smile flatter.
 In the local volatility model, the smile's dynamics are fully determined by the smile itself.
 There is no freedom to choose how implied volatilities move when the spot moves.
 
-The key quantity is the ATMF volatility $\hat{\sigma}_{F_T} := \hat{\sigma}(F_T, T)$,
+The key quantity is the ATMF volatility $\sigma_{\mathrm{ATMF}}(T) := \ivol(F_T, T)$,
 the implied volatility for a strike equal to the forward,
 and the question is how it changes when the spot moves by $d\ln S_0$.
 
 To first order in the local skew $\alpha(t)$ of \eqref{eq:lv_skew_expansion},
 \begin{equation}\label{eq:atmf_vol_move}
-    \frac{d\hat{\sigma}_{F_T}(T)}{d\ln S_0}
+    \frac{d\sigma_{\mathrm{ATMF}}(T)}{d\ln S_0}
     = \frac{1}{T}\int_0^T \alpha(t)\,dt .
 \end{equation}
 
 Using \eqref{eq:atmf_skew_from_lv} to write $\alpha$ in terms of the ATMF skew,
 this becomes \cite[Ch. 2]{bergomi_stochastic_vol}
 \begin{equation}\label{eq:atmf_vol_move_skew}
-    \frac{d\hat{\sigma}_{F_T}(T)}{d\ln S_0}
+    \frac{d\sigma_{\mathrm{ATMF}}(T)}{d\ln S_0}
     = \mathcal{S}_T + \frac{1}{T}\int_0^T \mathcal{S}_t\,dt .
 \end{equation}
 
@@ -400,7 +402,7 @@ by the term structure of the ATMF skew.
 
 Practitioners define the \textbf{skew stickiness ratio} (SSR) as
 \begin{equation}\label{eq:ssr}
-    \mathcal{R}_T := \frac{1}{\mathcal{S}_T}\,\frac{d\hat{\sigma}_{F_T}(T)}{d\ln S_0}.
+    \mathcal{R}_T := \frac{1}{\mathcal{S}_T}\,\frac{d\sigma_{\mathrm{ATMF}}(T)}{d\ln S_0}.
 \end{equation}
 
 The SSR measures how much the ATMF volatility moves with the spot,

@@ -52,7 +52,7 @@ we will focus on the one proposed by Dupire \cite{dupire_pricing_smile},
 known as the local volatility model,
 where the volatility is a deterministic function of time and spot price,
 \begin{equation*}
-    \sigma(t, S)^2 = 2\,\frac{
+    \lvol(t, S)^2 = 2\,\frac{
         \dfrac{\partial C}{\partial T} + qC + (r-q)\,K\,\dfrac{\partial C}{\partial K}
     }{
         K^2\,\dfrac{\partial^2 C}{\partial K^2}
@@ -61,7 +61,7 @@ where the volatility is a deterministic function of time and spot price,
 and also models the price of an option as a PDE,
 \begin{equation*}
     \frac{\partial C}{\partial T} + (r-q)\,K\,\frac{\partial C}{\partial K}
-    - \frac{\sigma^2(T,K)}{2}\,K^2\,\frac{\partial^2 C}{\partial K^2} = -qC.
+    - \frac{\lvol^2(T,K)}{2}\,K^2\,\frac{\partial^2 C}{\partial K^2} = -qC.
 \end{equation*}
 We will see it more in detail in Chapter \ref{ch:local_vol}.
 

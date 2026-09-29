@@ -32,7 +32,7 @@ computational domain is that union padded by $0.25$ on each side,
 $y \in [-0.467,\,0.427]$, that is strikes from $0.63\,S_0$ to $1.53\,S_0$.
 The pad is what separates the artificial boundary from the data.
 Its width is about $1.8$ standard deviations of the longest maturity,
-$\sigma\sqrt{\tau} \approx 0.14$ at $\sigma = 0.15$ and $\tau = 0.88$,
+$\ivol\sqrt{\tau} \approx 0.14$ at $\ivol = 0.15$ and $\tau = 0.88$,
 so whatever error we commit at the boundary is damped by the diffusion before it reaches the
 observed band. Widening it further only buys solve time, since the coefficient out there is
 constrained by no quote at all.
@@ -193,23 +193,23 @@ requirement in maturity rather than a second pull toward the seed.
 \label{subsec:prior_details}
 
 Section~\ref{sec:market_surface} explains why the prior cannot be the implied variance
-$\tfrac12\sigma_{\mathrm{iv}}^2$ and states the inversion~\eqref{eq:bbf_inversion} used
+$\tfrac12\ivol^2$ and states the inversion~\eqref{eq:bbf_inversion} used
 instead. It comes from the short maturity result of \cite{berestycki_busca_florent}, that the
 implied volatility is the harmonic mean of the local volatility between spot and strike,
 \begin{equation}\label{eq:bbf_harmonic}
-    \frac{y}{\sigma_{\mathrm{iv}}(y)}
-        \;=\; \int_0^y \frac{dx}{\sigma_{\mathrm{loc}}(x)}
+    \frac{y}{\ivol(y)}
+        \;=\; \int_0^y \frac{dx}{\lvol(x)}
     \qquad \text{as } \tau \to 0,
 \end{equation}
 whose derivative in $y$ gives~\eqref{eq:bbf_inversion} directly.
 
 Two details of the inversion matter in practice. The smile is replaced by a quadratic fit over
 the band before it is inverted, because the inversion needs
-$\partial_y\sigma_{\mathrm{iv}}$ and differentiating a raw quoted smile amplifies quote noise
+$\partial_y\ivol$ and differentiating a raw quoted smile amplifies quote noise
 into the prior; a quadratic is the lowest order carrying both a skew and a curvature, so the
 seed keeps the two features that matter without importing the wiggles of one day's chain. And
 the denominator of~\eqref{eq:bbf_inversion} is floored at $0.35$. On the downside wing the
-skew is steep enough for $1 - y\,\partial_y\sigma_{\mathrm{iv}}/\sigma_{\mathrm{iv}}$ to
+skew is steep enough for $1 - y\,\partial_y\ivol/\ivol$ to
 collapse toward zero, and a short maturity asymptotic used at $\tau$ close to a year has no
 business producing an unbounded seed; the floor caps it at roughly three times the implied
 level. Outside the quoted band the seed is extended flat.

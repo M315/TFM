@@ -465,12 +465,16 @@ and the question is: which value of $\sigma$ is implied by each observed price?
 
 \begin{definition}[Implied volatility]
     Given a market price $C^{\mathrm{mkt}}$ for a European call with strike $K$ and maturity $T$,
-    the \textbf{implied volatility} $\hat{\sigma}(K, T)$ is the unique $\sigma > 0$ such that
+    the \textbf{implied volatility} $\ivol(K, T)$ is the unique $\sigma > 0$ such that
     \begin{equation}\label{eq:implied_vol}
-        C_{\mathrm{BS}}\!\left(t, S;\, K, T,\, \hat{\sigma}\right) = C^{\mathrm{mkt}},
+        C_{\mathrm{BS}}\!\left(t, S;\, K, T,\, \ivol\right) = C^{\mathrm{mkt}},
     \end{equation}
     where $C_{\mathrm{BS}}$ denotes the Black-Scholes formula \eqref{eq:black_scholes_formula}.
 \end{definition}
+
+We keep the plain $\sigma$ for the constant volatility parameter of the Black-Scholes model,
+$\ivol$ for the implied volatility read from a market price,
+and later $\lvol$ for the local volatility of Chapter \ref{ch:local_vol}.
 
 Uniqueness follows from strict monotonicity of the call price in $\sigma$.
 To see this we compute the \textbf{vega} of the option, $\mathcal{V} := \partial C_{\mathrm{BS}} / \partial \sigma$.
@@ -546,7 +550,7 @@ until $\lvert C_{\mathrm{BS}}(\sigma^{(n)}) - C^{\mathrm{mkt}}\rvert < \varepsil
 
 If Black-Scholes with a single $\sigma$ perfectly described the market,
 every option on the same underlying would yield the same implied volatility.
-In practice, the map $(K, T) \mapsto \hat{\sigma}(K, T)$ is non-trivial,
+In practice, the map $(K, T) \mapsto \ivol(K, T)$ is non-trivial,
 and the resulting object is called the \textbf{implied volatility surface}.
 
 Two features of this surface are well documented in the literature, see \cite{derman_vol_smile}:
@@ -563,7 +567,7 @@ Two features of this surface are well documented in the literature, see \cite{de
 The non-flatness of the surface is direct empirical evidence that constant-$\sigma$ Black-Scholes
 is inconsistent with observed market prices.
 This motivates more flexible models such as the \textit{local volatility model},
-which replaces $\sigma$ by a deterministic function $\sigma(t, S)$ calibrated to reproduce the full surface exactly,
+which replaces $\sigma$ by a deterministic function $\lvol(t, S)$ calibrated to reproduce the full surface exactly,
 as described in the following section.
 
 Figure~\ref{fig:iv_surface} shows the implied volatility surface computed from SPY option quotes
@@ -588,7 +592,7 @@ puts (red) and OTM calls (blue) meet smoothly at the money.
     \includegraphics[width=0.85\textwidth]{iv_composite}
     \caption{SPY implied volatility surface (OTM composite) on 2026-04-30.
              Axes: time to maturity $T$ (years), moneyness $K/S$ (inverted scale),
-             implied volatility $\hat{\sigma}$.
+             implied volatility $\ivol$.
              Red dots are individual market quotes; the surface is linearly interpolated.}
     \label{fig:iv_surface}
 \end{figure}

@@ -13,17 +13,17 @@
 
 The local volatility model must be calibrated to market option prices to be usable.
 Given quoted call prices $C^*(K_i, T_j)$ for a finite set of strikes and maturities,
-we seek a function $\sigma(S,t)$, or equivalently $a(y,\tau) = \tfrac{1}{2}\sigma^2$,
+we seek a function $\lvol(t,S)$, or equivalently $a(y,\tau) = \tfrac{1}{2}\lvol^2$,
 such that the Dupire forward equation \eqref{eq:dupire_forward} reproduces the observed prices.
 Written out, the direct problem we invert is
 \begin{equation*}
     \frac{\partial C}{\partial T} + (r-q)\,K\,\frac{\partial C}{\partial K}
-    - \sigma^2(K,T)\,\frac{K^2}{2}\,\frac{\partial^2 C}{\partial K^2} + qC = 0,
+    - \lvol^2(T,K)\,\frac{K^2}{2}\,\frac{\partial^2 C}{\partial K^2} + qC = 0,
 \end{equation*}
 for $(K,T) \in (0,\infty) \times (0, T_{\max}]$,
 with initial condition $C(K,0) = (S_0 - K)^+$
 and the boundary behaviour $C \to S_0 e^{-qT}$ as $K \to 0$ and $C \to 0$ as $K \to \infty$.
-The unknown is the coefficient $\sigma$, the data are values of the solution $C$.
+The unknown is the coefficient $\lvol$, the data are values of the solution $C$.
 
 We follow \cite{egger2005tikhonov} and treat the calibration as a Tikhonov regularization problem.
 
@@ -41,8 +41,8 @@ the local volatility is not well determined by the prices.
 
 Also the Local Volatility model assumes that option prices are once continuously differentiable
 in $T$ and twice in $K$,
-we are looking for a function $\sigma(S,t)$ that reproduces the market prices,
-but PDE theory suggests that that the coefficient $\sigma$ should live in a more general space, like $H^1$ or $L^2$.
+we are looking for a function $\lvol(t,S)$ that reproduces the market prices,
+but PDE theory suggests that that the coefficient $\lvol$ should live in a more general space, like $H^1$ or $L^2$.
 This arises the problem, where the solution is smoother than the coefficient.
 
 
@@ -59,7 +59,7 @@ equation in Section~\ref{sec:bs_pricing}.
 Define the time to maturity $\tau = T$,
 the diffusion coefficient
 \begin{equation*}
-    a(y,\tau) = \tfrac{1}{2}\sigma^2(K,T),
+    a(y,\tau) = \tfrac{1}{2}\lvol^2(T,K),
 \end{equation*}
 and the normalized call price
 \begin{equation*}
@@ -100,7 +100,7 @@ operators in $y$:
     K^2\,\frac{\partial^2 C}{\partial K^2} = S_0\,(u_{yy} - u_y),
 \end{equation*}
 which is exactly what makes the equation translation-invariant in $y$.
-Substituting these into \eqref{eq:dupire_forward} and using $a = \tfrac12\sigma^2$,
+Substituting these into \eqref{eq:dupire_forward} and using $a = \tfrac12\lvol^2$,
 \begin{equation*}
     S_0\,u_\tau + (r-q)\,S_0\,u_y - a\,S_0\,(u_{yy} - u_y) = -q\,S_0\,u.
 \end{equation*}
@@ -567,7 +567,7 @@ with $r = q = 0$ and spot $S_0 = 1000$.
 }
 The true parameter is
 \[
-    a^\dagger = 0.15 \quad \Longleftrightarrow \quad \sigma^\dagger = \sqrt{2 \times 0.15} \approx 0.548.
+    a^\dagger = 0.15 \quad \Longleftrightarrow \quad \lvol^\dagger = \sqrt{2 \times 0.15} \approx 0.548.
 \]
 
 For part \emph{(A)} of the example,
@@ -736,18 +736,18 @@ so every quote samples the same evolving solution,
 and one forward solve with one adjoint sweep per iteration gives the whole gradient.
 
 The prior $a^*_k$ deserves care.
-Since $a = \tfrac12\sigma^2$, the instinct is to seed slice $k$ with the implied variance
-$\tfrac12\sigma_{\mathrm{iv}}^2$ of that maturity, which is at least in the right units.
+Since $a = \tfrac12\lvol^2$, the instinct is to seed slice $k$ with the implied variance
+$\tfrac12\ivol^2$ of that maturity, which is at least in the right units.
 This is the wrong choice.
 The $H^1$ term penalizes the difference of slopes $\partial_y(a_k - a^*_k)$,
 and by the factor of two of Section \ref{sec:factor_two} the implied skew is half the local one,
 so the reconstruction would be anchored at half the correct slope wherever the data are weak.
 We instead seed with the local volatility that the smile itself implies.
 Differentiating the short maturity relation \eqref{eq:bbf_harmonic} of
-\cite{berestycki_busca_florent} in $y$ and solving for $\sigma_{\mathrm{loc}}$ gives
+\cite{berestycki_busca_florent} in $y$ and solving for $\lvol$ gives
 \begin{equation}\label{eq:bbf_inversion}
-    \sigma_{\mathrm{loc}}(y) \;=\; \frac{\sigma_{\mathrm{iv}}(y)}
-        {1 - y\,\partial_y\sigma_{\mathrm{iv}}(y)/\sigma_{\mathrm{iv}}(y)},
+    \lvol(y) \;=\; \frac{\ivol(y)}
+        {1 - y\,\partial_y\ivol(y)/\ivol(y)},
 \end{equation}
 which agrees with the smile at the money and doubles its skew there,
 as \eqref{eq:factor_two_derivative} of the next section requires.
@@ -761,7 +761,7 @@ to $0.23$ at the longest, near $0.12$ on the upside,
 and rising on the downside to $0.40$ at the long maturities and to $0.95$ at the short end.
 Repricing the quotes gives a median relative error of $0.13\%$,
 with the maximum over liquid strikes below $1\%$ at every expiration.
-The naive prior $\tfrac12\sigma_{\mathrm{iv}}^2$ gives a median of $0.20\%$ and maxima above $2\%$,
+The naive prior $\tfrac12\ivol^2$ gives a median of $0.20\%$ and maxima above $2\%$,
 so \eqref{eq:bbf_inversion} does remove the bias.
 As in the synthetic examples the surface is well determined near the money and on the downside,
 and relaxes towards the prior on the upside wing where call prices are close to zero,
@@ -779,7 +779,7 @@ Figure \ref{fig:egger_arbitrage}, produced by \texttt{examples/example7\_arbitra
 confirms it on the discrete surface,
 the risk-neutral density $\partial^2_{KK}\mathcal{C}$ is non-negative across the observed band
 at every maturity,
-and the total implied variance $\sigma_{\mathrm{iv}}^2\tau$ increases in maturity at every moneyness.
+and the total implied variance $\ivol^2\tau$ increases in maturity at every moneyness.
 
 Near the money the recovered local volatility is visibly steeper in strike than the market smile.
 This is a definite relation between the two skews, which we make precise next.
@@ -790,7 +790,7 @@ This is a definite relation between the two skews, which we make precise next.
     \caption{No-arbitrage check of the calibrated surface of Figure~\ref{fig:egger_surface}.
              Left: the risk-neutral density $\partial^2 \mathcal{C}/\partial K^2$ per maturity,
              non-negative across the observed band (no strike, or butterfly, arbitrage). Right:
-             the total implied variance $\sigma_{\mathrm{iv}}^2\tau$ against maturity at fixed
+             the total implied variance $\ivol^2\tau$ against maturity at fixed
              log-moneyness, increasing everywhere (no time, or calendar, arbitrage).}
     \label{fig:egger_arbitrage}
 \end{figure}
@@ -802,7 +802,7 @@ Derman and Bergomi.
 \begin{figure}[h!]
     \centering
     \includegraphics[width=0.75\textwidth]{egger_example4_surface_3d}
-    \caption{Local volatility surface $\sigma(y,\tau)$ calibrated from SPY quotes on 30 April
+    \caption{Local volatility surface $\lvol(y,\tau)$ calibrated from SPY quotes on 30 April
              2026 ($S_0 = 720.65$, eleven maturities), with $\beta_y = 0.1$ and $\beta_\tau = 1$.}
     \label{fig:egger_surface}
 \end{figure}
@@ -834,8 +834,8 @@ from \eqref{eq:factor_two},
 near ATM the local volatility skew is twice the implied volatility skew,
 we can rewrite it as
 \begin{equation}\label{eq:factor_two_derivative}
-    \left.\partial_y \sigma_{\mathrm{loc}}\right|_{y=0}
-      \;=\; 2\,\left.\partial_y \sigma_{\mathrm{iv}}\right|_{y=0},
+    \left.\partial_y \lvol\right|_{y=0}
+      \;=\; 2\,\left.\partial_y \ivol\right|_{y=0},
 \end{equation}
 see \cite{bergomi_stochastic_vol} Chapter 2.
 
@@ -864,8 +864,8 @@ and stays between $2.0$ and $2.5$ over the whole term structure.
     \centering
     \begin{tabular}{c c c c c}
         \toprule
-        expiration & $\tau$ & $\partial_y\sigma_{\mathrm{iv}}$
-                   & $\partial_y\sigma_{\mathrm{loc}}$ & ratio \\
+        expiration & $\tau$ & $\partial_y\ivol$
+                   & $\partial_y\lvol$ & ratio \\
         \midrule
         2026-06-05 & $0.096$ & $-0.827$ & $-1.659$ & $2.01$ \\
         2026-06-18 & $0.132$ & $-0.718$ & $-1.558$ & $2.17$ \\
@@ -904,7 +904,7 @@ The local volatility surface is calibrated on the remaining ten maturities and t
 so the price at $\tau = 0.63$ is a genuine sample of the forward solution rather than an interpolation of the smile.
 On the other hand,
 the implied volatility is computed at the remaining data points,
-then we interpolate the total variance $\sigma_{\mathrm{iv}}^2\tau$ linearly in maturity at fixed log-moneyness between the two closest expirations,
+then we interpolate the total variance $\ivol^2\tau$ linearly in maturity at fixed log-moneyness between the two closest expirations,
 $\tau = 0.42$ and $\tau = 0.71$,
 to finally calculate the price from Black-Scholes formula.
 
