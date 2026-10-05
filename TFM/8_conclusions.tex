@@ -4,8 +4,16 @@ This work has build up the mathematical financial theory of options up to the lo
 while presenting numerical results for the calibration of both,
 implied volatility surface and local volatility surface.
 
+Numerically we extended Eggers \cite{egger2005tikhonov} framework to incorporate time,
+although we haven't proved the convergence results in that case,
+this path would be worth to research if there are any results to justify our decision,
+or in the case that there are not try to formalize a justification.
 
+We also check numerically the famous theoretical result of the rule of 2,
+confirming it empirically.
+And check that the calibrated model is able to reprice options out of sample,
+with little error.
 
-% \section{Limitations}
-
-% \section{Further work}
+Finally mention that further work can be done in this specific area
+by investigating how to adapt an inverse problem set up to calibrate on random data,
+making the model more realistic to market conditions.
