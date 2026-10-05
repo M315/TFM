@@ -1,0 +1,72 @@
+% ----------------------------------
+%   Introduction and structure of the work
+% ----------------------------------
+
+\begin{frame}
+\frametitle{Introduction}
+\begin{scriptsize}
+\begin{itemize}
+\item An option gives its holder the right, but not the obligation,
+to buy (call) or sell (put) an asset at an agreed price $K$ on an agreed date $T$.
+
+\item In 1973 Black, Scholes and Merton priced European options with a PDE
+whose solution has a closed form, assuming a \textbf{constant volatility} $\sigma$.
+
+\item After the 1987 crash markets display the \textbf{smile}:
+the volatility implied by the prices depends on the strike and the maturity.
+
+\item Dupire (1994) proposed the \textbf{local volatility model},
+where the volatility is a deterministic function $\lvol(t,S)$,
+which reproduces any arbitrage-free set of prices.
+
+\item To be useful the model must be \textbf{calibrated}:
+find the coefficient $\lvol$ of a PDE from finitely many, noisy observations of its solution.
+This is an ill-posed \textbf{inverse problem}.
+\end{itemize}
+\medskip
+
+\textbf{Aim}: build the pricing theory up to the Dupire equation,
+and solve its calibration by Tikhonov regularization following
+
+\smallskip
+Egger, H., Engl, H. W. (2005). \emph{Tikhonov regularization applied to the inverse problem of option pricing: convergence analysis and rates}. Inverse Problems, 21(3), 1027.
+
+\smallskip
+All the code can be found in \url{https://github.com/M315/TFM}.
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Structure of the work}
+\begin{scriptsize}
+\begin{enumerate}
+\item[2--3.] \textbf{Preliminaries.} Probability spaces, filtrations, martingales, Brownian motion,
+It\^{o} integral, It\^{o} formula and SDEs.
+\item[4.] \textbf{Black-Scholes.} Replication, the BS PDE, its solution, implied volatility and its surface.
+\item[5.] \textbf{Arbitrage theory.} PDE and martingale methods, fundamental theorems of asset pricing.
+\item[6.] \textbf{Local volatility.} Dupire formula, forward equation, no-arbitrage conditions,
+local vs.\ implied volatility.
+\item[7.] \textbf{Calibration.} Ill-posedness, Tikhonov functional, adjoint gradient,
+convergence rates, discretization and numerical experiments.
+\item[A--C.] \textbf{Appendices.} Implied volatility pipeline, calibration details, code.
+\end{enumerate}
+\end{scriptsize}
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=0.35cm,
+    box/.style={draw, rounded corners, align=center, font=\scriptsize, minimum height=0.8cm, text width=1.6cm},
+    focus/.style={box, fill=blue!15, thick},
+    every path/.style={->, >=stealth}]
+    \node[box] (sc) {Stochastic calculus};
+    \node[box, right=of sc] (bs) {Black-Scholes};
+    \node[box, right=of bs] (arb) {Arbitrage};
+    \node[focus, right=of arb] (dup) {Dupire PDE};
+    \node[focus, right=of dup] (cal) {Calibration};
+    \draw (sc) -- (bs); \draw (bs) -- (arb); \draw (arb) -- (dup); \draw (dup) -- (cal);
+\end{tikzpicture}
+\end{center}
+\begin{scriptsize}
+This presentation briefly recalls stochastic calculus and Black-Scholes, and focuses on the Dupire PDE and its calibration.
+\end{scriptsize}
+\end{frame}

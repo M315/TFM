@@ -1,0 +1,193 @@
+% ----------------------------------
+%   Local volatility and the Dupire PDE (Chapter 6)
+% ----------------------------------
+
+\begin{frame}
+\frametitle{Local volatility model}
+\begin{scriptsize}
+\begin{itemize}
+\item The volatility becomes a deterministic function of time and spot,
+\begin{equation*}
+    \frac{dS_t}{S_t} = (r - q)\, dt + \lvol(t, S_t)\, dW_t ,
+\end{equation*}
+with $q$ the dividend yield.
+We write $\lvol$ for the local and $\ivol$ for the implied volatility.
+
+\item The pricing PDE is the Black-Scholes one with $\sigma$ replaced by $\lvol(t,S)$,
+\begin{equation*}
+    \frac{\partial f}{\partial t} =
+        r f
+        - (r - q) S \frac{\partial f}{\partial S}
+        - \frac{1}{2} \lvol^2(t, S) S^2 \frac{\partial^2 f}{\partial S^2}.
+\end{equation*}
+
+\item It is a \textbf{market model}: it is calibrated so that vanilla options are priced exactly.
+
+\item \textbf{Question}: given the call prices $C(K,T)$, which $\lvol$ produces them?
+\end{itemize}
+\medskip
+Dupire, B. (1994). \emph{Pricing with a Smile}. Risk.\\
+Bergomi, L. (2015). \emph{Stochastic Volatility Modeling}, Ch.~2. CRC Press.
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Dupire equation. Derivation (I)}
+\begin{scriptsize}
+Take a general diffusion $dS_t = (r - q) S_t\, dt + \sigma_t S_t\, dW_t$, $\sigma_t$ any adapted process,
+and undiscounted prices $\mathcal{C}(K,T) = e^{rT} C(K,T) = \E[(S_T - K)^+]$.
+\begin{itemize}
+\item In the sense of distributions, with $\theta$ the Heaviside function and $\delta$ the Dirac delta,
+\begin{equation*}
+    \frac{d}{dx}(x)^+ = \theta(x),
+    \qquad
+    \frac{d^2}{dx^2}(x)^+ = \delta(x).
+\end{equation*}
+\item It\^{o}'s formula applied to $(S_T - K)^+$ over $[T, T + dT]$,
+\begin{equation*}
+    d(S_T - K)^+
+    = \theta(S_T - K)\bigl((r-q) S_T\, dT + \sigma_T S_T\, dW_T\bigr)
+    + \tfrac{1}{2}\,\delta(S_T - K)\,\sigma_T^2 S_T^2\, dT.
+\end{equation*}
+\item Differentiating $\mathcal{C}$ in $K$,
+\begin{equation*}
+    \E\!\left[\theta(S_T - K)\right] = -\frac{\partial \mathcal{C}}{\partial K},
+    \qquad
+    \E\!\left[\delta(S_T - K)\right] = \frac{\partial^2 \mathcal{C}}{\partial K^2} = p^*(K, T),
+\end{equation*}
+the second one is \textbf{Breeden-Litzenberger}: the convexity in strike is the risk-neutral density of $S_T$.
+\end{itemize}
+\medskip
+Breeden, D. T., Litzenberger, R. H. (1978). \emph{Prices of State-Contingent Claims Implicit in Option Prices}. J. Business.
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Dupire equation. Derivation (II)}
+\begin{scriptsize}
+\begin{itemize}
+\item Taking expectations ($\E[dW_T] = 0$) and using the sifting property $S_T^2\,\delta(S_T - K) = K^2\,\delta(S_T - K)$,
+\begin{equation*}
+    \frac{\partial \mathcal{C}}{\partial T}
+    = (r-q)\left(\mathcal{C} - K\frac{\partial \mathcal{C}}{\partial K}\right)
+    + \frac{K^2}{2}\,\E\!\left[\sigma_T^2\,\delta(S_T - K)\right].
+\end{equation*}
+\item Dividing by $\E[\delta(S_T - K)]$ and going back to discounted prices,
+\begin{equation*}
+    \E\!\left[\sigma_T^2 \,\middle|\, S_T = K\right]
+    = 2\,\frac{\dfrac{\partial C}{\partial T} + qC + (r-q)\,K\,\dfrac{\partial C}{\partial K}}
+           {K^2\,\dfrac{\partial^2 C}{\partial K^2}},
+\end{equation*}
+valid for \emph{any} $\sigma_t$: the smile only fixes the conditional expectation of $\sigma_T^2$.
+
+\item In the local volatility model $\sigma_t = \lvol(t, S_t)$, which gives the \textbf{Dupire formula}
+\begin{equation*}
+    \lvol(t, S)^2 = 2\,\frac{
+        \dfrac{\partial C}{\partial T} + qC + (r-q)\,K\,\dfrac{\partial C}{\partial K}
+    }{
+        K^2\,\dfrac{\partial^2 C}{\partial K^2}
+    }\Bigg|_{\substack{K = S,\\ T = t}}.
+\end{equation*}
+\item A full surface of call prices determines $\lvol$ uniquely.
+\end{itemize}
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Dupire forward equation}
+\begin{scriptsize}
+Rearranging the same identity, for a known $\lvol$ the call prices solve the \textbf{Dupire forward equation}
+\begin{equation}\label{eq:dupire_forward}
+    \frac{\partial C}{\partial T} + (r-q)\,K\,\frac{\partial C}{\partial K}
+    - \frac{\lvol^2(T,K)}{2}\,K^2\,\frac{\partial^2 C}{\partial K^2} = -qC,
+\end{equation}
+\begin{equation*}
+    (K, T) \in (0, \infty) \times (0, T_{\max}], \qquad C(K, 0) = (S_0 - K)^+ .
+\end{equation*}
+
+\begin{center}
+\begin{tabular}{l l l}
+\toprule
+ & Black-Scholes PDE & Dupire PDE \\
+\midrule
+Variables & spot $S$, time $t$ & strike $K$, maturity $T$ \\
+Direction & backward from payoff at $T$ & forward from $T = 0$ \\
+Fixed & one strike and maturity & one spot $S_0$ \\
+Output & price for every $S$ & prices for every $(K, T)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+\medskip
+
+\begin{itemize}
+\item One solve prices the whole surface quoted today.
+This is what makes the equation the natural \textbf{direct problem} for calibration:
+the data $C^*(K_i, T_j)$ are values of its solution, and the unknown is its coefficient $\lvol$.
+\end{itemize}
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{No-arbitrage conditions}
+\begin{scriptsize}
+No arbitrage makes numerator and denominator of the Dupire formula non-negative,
+so $\lvol^2 \geq 0$ wherever the density of $S_T$ does not vanish.
+\begin{itemize}
+\item \textbf{Strike (butterfly) arbitrage.}
+$\partial^2 C / \partial K^2 = e^{-rT} p^*(K,T) \geq 0$.
+Otherwise the butterfly
+\begin{equation*}
+    V_0(\varepsilon)
+        = \frac{C(K-\varepsilon, T) - 2\,C(K, T) + C(K+\varepsilon, T)}{\varepsilon^2}
+        \longrightarrow \frac{\partial^2 C}{\partial K^2} < 0
+\end{equation*}
+is entered at a negative premium with a non-negative payoff, by convexity of $(x)^+$.
+
+\item \textbf{Maturity (calendar) arbitrage.}
+The numerator equals
+\begin{equation*}
+    e^{-qT}\frac{d}{dT}\!\left[e^{qT}\,C\!\left(K e^{(r-q)T}, T\right)\right] \geq 0,
+\end{equation*}
+a call struck at a fixed proportion of the forward cannot get cheaper with maturity.
+\end{itemize}
+\medskip
+Both are conditions on the \emph{prices}: every arbitrage-free surface admits a local volatility.
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{From local to implied volatility}
+\begin{scriptsize}
+\begin{itemize}
+\item \textbf{Gamma average.} Delta hedging with $\ivol$ while the spot follows $\lvol$ gives
+\begin{equation*}
+    \ivol(K,T)^2
+    = \frac{
+        \E\!\left[\int_0^T e^{-rt} S_t^2\,
+            \partial_{SS} C_{\mathrm{BS}}\,\lvol(t, S_t)^2\,dt\right]
+      }{
+        \E\!\left[\int_0^T e^{-rt} S_t^2\,
+            \partial_{SS} C_{\mathrm{BS}}\,dt\right]
+      }:
+\end{equation*}
+the implied variance is a smoothed local variance, so the smile is flatter.
+
+\item \textbf{Rule of two.} If $\lvol(t, S) = \sigma_0 + \alpha(t)\, x + \cdots$, $x = \ln(S / F_t)$,
+the ATMF skew $\mathcal{S}_T = \partial_{\ln K} \ivol |_{K = F_T}$ is, to first order,
+\begin{equation*}
+    \mathcal{S}_T = \frac{1}{T}\int_0^T \frac{t}{T}\,\alpha(t)\,dt
+    \quad \overset{\alpha \text{ const.}}{\Longrightarrow} \quad
+    \mathcal{S}_T = \frac{\alpha}{2}.
+\end{equation*}
+The local skew is twice the implied skew.
+
+\item \textbf{Skew stickiness ratio.}
+$\mathcal{R}_T = \frac{1}{\mathcal{S}_T}\frac{d\sigma_{\mathrm{ATMF}}}{d\ln S_0} = 1 + \frac{1}{T}\int_0^T \frac{\mathcal{S}_t}{\mathcal{S}_T}\,dt$,
+equal to $2$ for a flat term structure of skew:
+the smile dynamics are not free, they are fixed by the calibrated smile.
+\end{itemize}
+\medskip
+Bergomi, L. (2015). \emph{Stochastic Volatility Modeling}, Ch.~2. CRC Press.\\
+Derman, E., Miller, M. B., Park, D. (2016). \emph{The Volatility Smile}. Wiley.
+\end{scriptsize}
+\end{frame}

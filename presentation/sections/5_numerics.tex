@@ -1,0 +1,171 @@
+% ----------------------------------
+%   Calibration, numerical experiments (Chapter 7)
+% ----------------------------------
+
+\begin{frame}
+\frametitle{Example 1. Constant volatility}
+\begin{scriptsize}
+Egger and Engl, Example 1: recover $a^\dagger = 0.15$ ($\lvol \approx 0.548$) on $y \in [-3,3]$, $\tau \in [0,1]$,
+$r = q = 0$, $S_0 = 1000$, prior $a^*(y) = 0.15 - 0.05\,\operatorname{erf}(-y^2)$, $\beta = 10^{-6}$.
+Cases: (A) exact data, (B) 20 strikes, (C) poor prior $a^* \equiv 0.15$, (D) $0.1\%$ noise, (BD) both.
+\end{scriptsize}
+\begin{center}
+\begin{tiny}
+\begin{tabular}{c c c c c c c}
+\toprule
+Strike & True & A & B & C & D & BD \\
+\midrule
+600  & 0.1500 & 0.1493 & 0.1500 & 0.1519 & 0.1378 & 0.1245 \\
+1000 & 0.1500 & 0.1499 & 0.1499 & 0.1515 & 0.1490 & 0.1455 \\
+1400 & 0.1500 & 0.1497 & 0.1498 & 0.1504 & 0.1489 & 0.1522 \\
+1600 & 0.1500 & 0.1508 & 0.1501 & 0.1491 & 0.1543 & 0.1500 \\
+1800 & 0.1500 & 0.1487 & 0.1504 & 0.1511 & 0.1461 & 0.1463 \\
+\bottomrule
+\end{tabular}
+\end{tiny}
+\end{center}
+\begin{figure}[htb!]
+    \centering
+    \includegraphics[width=0.8\linewidth]{egger_example1_caseBD}
+    \caption{\scriptsize Case BD: incomplete and noisy data. Good recovery where observed, prior dominates the wings.}
+\end{figure}
+\end{frame}
+
+\begin{frame}
+\frametitle{Example 2. The role of the prior}
+\begin{scriptsize}
+Oscillatory true coefficient near the money,
+$a^\dagger(y) = 0.15 + 0.05\,e^{-(y+0.3)^2}\sin(2\pi y) + 0.05\,\operatorname{erf}(20 y)$,
+prior $a^*(y) = 0.15 + 0.05\,\operatorname{erf}(2y)$.
+Data generated on a finer mesh and wider domain to avoid the \emph{inverse crime};
+noisy cases use the $\beta$ schedule with the discrepancy principle.
+\end{scriptsize}
+\begin{figure}[htb!]
+    \centering
+    \includegraphics[width=0.9\linewidth]{egger_example2_recovery}
+    \caption{\scriptsize Recovered $a(y)$ (blue), true $a^\dagger$ (red dashed), prior (grey).
+    In case C the constant prior cannot recover the wings, where the data are weak.}
+\end{figure}
+\end{frame}
+
+\begin{frame}
+\frametitle{Market surface. Extension to time-dependent volatility}
+\begin{scriptsize}
+\begin{itemize}
+\item Prices are observed at finitely many maturities, so $a$ is taken \textbf{piecewise constant in time},
+\begin{equation*}
+    a(y,\tau) = \sum_{n=1}^{K} a_n(y)\,\chi_{(\tau_{n-1},\,\tau_n]}(\tau),
+    \qquad a_n \in H^1(-M,M),
+\end{equation*}
+one slice per quoted maturity. $K = 1$ is the setting of Egger and Engl.
+
+\item The functional adds a penalty on jumps between slices,
+\begin{equation*}
+    J(a) = \sum_{j=1}^{N} \bigl\| u(a)(\cdot,\tau_j) - u^\delta_j \bigr\|^2_{L^2(\Omega_j)}
+         + \beta_y \sum_{n=1}^{K} \| a_n - a^*_n \|^2_{H^1(\Omega)}
+         + \beta_\tau \sum_{n=2}^{K} \| a_n - a_{n-1} \|^2_{L^2(\Omega)}.
+\end{equation*}
+One forward march to the last maturity and one adjoint sweep give the whole gradient.
+
+\item \textbf{Prior.} Seeding with $\tfrac12\ivol^2$ anchors the slope at half the right value (rule of two).
+Instead invert the short maturity harmonic mean relation of Berestycki, Busca and Florent,
+\begin{equation*}
+    \frac{y}{\ivol(y)} = \int_0^y \frac{dx}{\lvol(x)}
+    \quad \Longrightarrow \quad
+    \lvol(y) = \frac{\ivol(y)}{1 - y\,\partial_y\ivol(y)/\ivol(y)}.
+\end{equation*}
+\end{itemize}
+\medskip
+Berestycki, H., Busca, J., Florent, I. (2002). \emph{Asymptotics and calibration of local volatility models}. Quantitative Finance.
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Market surface. SPY, 30 April 2026}
+\begin{scriptsize}
+$S_0 = 720.65$, eleven maturities $\tau \in [0.10, 0.88]$, liquid band $0.8 \le K/S_0 \le 1.2$,
+$\beta_y = 0.1$, $\beta_\tau = 1$.
+\end{scriptsize}
+\begin{figure}[htb!]
+    \centering
+    \begin{subfigure}[b]{0.5\linewidth}\centering
+    \includegraphics[width=\linewidth]{egger_example4_surface_3d}
+    \caption{\scriptsize Calibrated $\lvol(y,\tau)$.}
+    \end{subfigure}%
+    \begin{subfigure}[b]{0.5\linewidth}\centering
+    \includegraphics[width=\linewidth]{egger_example4_surface_slices}
+    \caption{\scriptsize Local (solid) vs.\ implied (faint) volatility.}
+    \end{subfigure}
+\end{figure}
+\begin{scriptsize}
+Pronounced negative skew: $\lvol \approx 0.15$ ATM at the short end to $0.23$ at the long end,
+up to $0.95$ on the short downside.
+Median reprice error $0.13\%$, below $1\%$ on liquid strikes at every maturity
+(the naive prior $\tfrac12\ivol^2$ gives $0.20\%$ and maxima above $2\%$).
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Market surface. Free of arbitrage by construction}
+\begin{scriptsize}
+\begin{itemize}
+\item The optimizer keeps $a \geq 10^{-8}$ and the prices solve the Dupire equation with that coefficient,
+so they are the prices of a genuine diffusion: the conditions of the no-arbitrage slide cannot fail.
+\item The implied volatility interpolation route carries no such guarantee.
+\end{itemize}
+\end{scriptsize}
+\begin{figure}[htb!]
+    \centering
+    \includegraphics[width=\linewidth]{egger_example7_arbitrage}
+    \caption{\scriptsize Left: risk-neutral density $\partial^2_{KK}\mathcal{C} \geq 0$ per maturity (no butterfly arbitrage).
+    Right: total implied variance $\ivol^2\tau$ increasing in maturity (no calendar arbitrage).}
+\end{figure}
+\end{frame}
+
+\begin{frame}
+\frametitle{Market surface. The rule of two}
+\begin{scriptsize}
+Near the money $\partial_y \lvol|_{y=0} = 2\,\partial_y \ivol|_{y=0}$.
+Quadratic fits on $|y| \le 0.05$ of the market smile and of the calibrated slices:
+\end{scriptsize}
+\begin{figure}[htb!]
+    \centering
+    \includegraphics[width=0.8\linewidth]{egger_example5_skew}
+\end{figure}
+\begin{center}
+\begin{tiny}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{c c c c c c c c c c c c}
+\toprule
+$\tau$ & 0.096 & 0.132 & 0.164 & 0.211 & 0.249 & 0.307 & 0.384 & 0.416 & 0.633 & 0.710 & 0.882 \\
+\midrule
+ratio & 2.01 & 2.17 & 2.02 & 2.36 & 2.24 & 2.32 & 2.19 & 2.24 & 2.47 & 2.17 & 2.38 \\
+\bottomrule
+\end{tabular}
+\end{tiny}
+\end{center}
+\begin{scriptsize}
+The ratio averages $2.16$ below three months and stays in $[2.0, 2.5]$: the theory is confirmed empirically.
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Market surface. Out of sample pricing}
+\begin{scriptsize}
+Remove the December 2026 expiration ($\tau = 0.63$) and price it out of sample:
+\begin{itemize}
+\item \textbf{Local volatility}: calibrate on the other ten maturities, the Dupire equation propagates across the gap.
+\item \textbf{Implied volatility}: interpolate the total variance $\ivol^2\tau$ linearly between $\tau = 0.42$ and $0.71$.
+\end{itemize}
+\end{scriptsize}
+\begin{figure}[htb!]
+    \centering
+    \includegraphics[width=0.55\linewidth]{egger_example6_holdout}
+\end{figure}
+\begin{scriptsize}
+Neither is off by more than $2\%$ on $|y| \le 0.15$.
+Median error: $0.75\%$ local volatility, $0.29\%$ interpolation.
+the interpolation is built to reproduce the smile, while the local volatility error accumulates through the PDE.
+Yet only the local volatility surface is guaranteed to be arbitrage-free.
+\end{scriptsize}
+\end{frame}

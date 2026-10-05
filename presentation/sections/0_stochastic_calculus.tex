@@ -1,0 +1,78 @@
+% ----------------------------------
+%   Stochastic calculus (Chapter 3)
+% ----------------------------------
+
+\begin{frame}
+\frametitle{Stochastic calculus. It\^{o} integral and It\^{o}'s formula}
+\begin{scriptsize}
+\begin{itemize}
+\item An ODE $dS_t = f(t, S_t)\, dt$ cannot capture the random fluctuations of prices.
+A \textbf{stochastic differential equation} adds a Brownian noise term,
+\begin{equation*}
+    dS_t = b(t, S_t)\, dt + \sigma(t, S_t)\, dW_t
+    \iff
+    S_t = S_0 + \int_0^t b(s, S_s)\, ds + \int_0^t \sigma(s, S_s)\, dW_s .
+\end{equation*}
+\item \textbf{It\^{o} integral}: for elementary $\phi = \sum_j e_j \mathbf{1}_{[t_j, t_{j+1})}$, with $e_j$ $\F_{t_j}$-measurable,
+\begin{equation*}
+    \int_0^T \phi\, dW_t = \sum_j e_j \bigl( W_{t_{j+1}} - W_{t_j} \bigr),
+    \qquad
+    \E\Bigl[ \Bigl( \int_0^T \phi\, dW_t \Bigr)^2 \Bigr] = \E\Bigl[ \int_0^T \phi^2\, dt \Bigr],
+\end{equation*}
+the second identity being the \textbf{It\^{o} isometry}. It is
+extended by density to adapted processes with $\E \int_0^T f^2\, dt < \infty$.
+The result is a continuous \textbf{martingale}.
+\item \textbf{It\^{o}'s formula} (stochastic chain rule): if $dX_t = \mu\, dt + \sigma\, dW_t$
+and $g \in C^{1,2}$, then $Y_t = g(t, X_t)$ is an It\^{o} process with
+\begin{equation*}
+    dY_t = \frac{\partial g}{\partial t}\, dt
+        + \frac{\partial g}{\partial x}\, dX_t
+        + \frac{1}{2} \frac{\partial^2 g}{\partial x^2} (dX_t)^2,
+    \qquad
+    (dW_t)^2 = dt,\ \ dt\, dW_t = (dt)^2 = 0 .
+\end{equation*}
+\item The extra second-order term $\tfrac{1}{2} \sigma^2 g_{xx}\, dt$ is what turns
+stochastic dynamics into the \textbf{diffusion term of a PDE}.
+\end{itemize}
+\smallskip
+{\O}ksendal, B. (2010). \emph{Stochastic Differential Equations}. Springer. Ch.~3--4.
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Stochastic calculus. SDEs as building blocks}
+\begin{scriptsize}
+\begin{itemize}
+\item \textbf{Existence and uniqueness}: if $b$ and $\sigma$ are Lipschitz in $x$ and have linear growth,
+the SDE has a unique continuous adapted solution.
+\item \textbf{Geometric Brownian motion}. Applying It\^{o}'s formula to $\ln S_t$,
+\begin{equation*}
+    dS_t = \mu S_t\, dt + \sigma S_t\, dW_t
+    \ \Longrightarrow\
+    d(\ln S_t) = \Bigl( \mu - \frac{\sigma^2}{2} \Bigr) dt + \sigma\, dW_t,
+\end{equation*}
+so $S_t = S_0 \exp\bigl[ (\mu - \sigma^2/2) t + \sigma W_t \bigr]$. Log-normal prices, always positive: the Black-Scholes model.
+\item Each model of this work is an SDE for the underlying, differing only in the diffusion coefficient:
+\end{itemize}
+\end{scriptsize}
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=0.5cm and 0.6cm,
+    box/.style={draw, rounded corners, align=center, font=\scriptsize, minimum height=0.9cm, text width=2.9cm},
+    focus/.style={box, fill=blue!15, thick},
+    every path/.style={->, >=stealth}]
+    \node[box] (sde) {SDE \\ $dS_t = b\, dt + \sigma\, dW_t$ \\ It\^{o}'s formula};
+    \node[box, above right=0.1cm and 0.5cm of sde] (bs) {Black-Scholes \\ $\sigma S_t$, \ $\sigma$ constant};
+    \node[focus, below right=0.1cm and 0.5cm of sde] (lv) {Local volatility \\ $\lvol(t, S_t)\, S_t$};
+    \node[box, right=0.4cm of bs, text width=1.8cm] (bspde) {BS PDE};
+    \node[focus, right=0.4cm of lv, text width=1.8cm] (dpde) {Dupire PDE};
+    \draw (sde) -- (bs); \draw (sde) -- (lv);
+    \draw (bs) -- (bspde); \draw (lv) -- (dpde);
+\end{tikzpicture}
+\end{center}
+
+\begin{scriptsize}
+{\O}ksendal, B. (2010). \emph{Stochastic Differential Equations}. Springer. Thm.~5.2.1.
+\end{scriptsize}
+\end{frame}

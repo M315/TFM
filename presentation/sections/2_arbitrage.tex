@@ -1,0 +1,61 @@
+% ----------------------------------
+%   Arbitrage theory (Chapter 5)
+% ----------------------------------
+
+\begin{frame}
+\frametitle{Arbitrage theory. Market, portfolios and arbitrage}
+\begin{scriptsize}
+\begin{itemize}
+\item \textbf{Market}: a riskless asset $dS_0 = r S_0\, dt$ and risky assets
+\begin{equation*}
+    dS_i(t) = \mu_i(S(t), t)\, dt + \sigma_i(S(t), t)^\intercal dW(t), \qquad i = 1, \dots, n .
+\end{equation*}
+\item \textbf{Portfolio}: an adapted process $\theta(t)$ with value $V(t) = \theta(t)^\intercal S(t)$,
+self-financing if $dV(t) = \theta(t)^\intercal dS(t)$.
+
+\item \textbf{PDE method}: replicating $V(S(t), t)$ and imposing self-financing gives
+$\theta_i = \partial V / \partial S_i$ and
+\begin{equation*}
+    \frac{\partial V}{\partial t} + \frac{1}{2} \sum_{i,j} \frac{\partial^2 V}{\partial S_i \partial S_j} \sigma_i^\intercal \sigma_j = 0,
+    \qquad V = \sum_{i} \frac{\partial V}{\partial S_i} S_i,
+\end{equation*}
+which recovers the BS PDE for $n = 1$, $\sigma_1 = \sigma S_1$.
+
+\item \textbf{Arbitrage}: a self-financing admissible portfolio with
+\begin{enumerate}
+\item $V(0) < 0$ and $\mathbb{P}(V(t) \geq 0) = 1$, or
+\item $V(0) = 0$, $\mathbb{P}(V(t) \geq 0) = 1$ and $\mathbb{P}(V(t) > 0) > 0$.
+\end{enumerate}
+\end{itemize}
+\smallskip
+Bj\"ork, T. (2009). \emph{Arbitrage Theory in Continuous Time}. Oxford University Press.\\
+Glasserman, P. (2003). \emph{Monte Carlo Methods in Financial Engineering}. Springer.
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Arbitrage theory. Martingale method}
+\begin{scriptsize}
+\begin{itemize}
+\item A \textbf{risk-neutral measure} $\Q \sim \mathbb{P}$ is one under which the normalized prices
+$Z_i = S_i / S_0$ are martingales: every asset drifts at the risk-free rate.
+
+\item \textbf{First fundamental theorem.}
+The market is arbitrage-free if and only if there exists an equivalent (local) martingale measure $\Q$.
+
+\item \textbf{Second fundamental theorem.}
+Assuming no arbitrage, the market is complete if and only if $\Q$ is unique.
+
+\item In a complete market the price of a claim with payoff $f(S(T))$ is
+\begin{equation*}
+    V(t) = \E^{\Q} \left[ \left. e^{ - \int^T_t r(s)\, ds} f(S(T)) \,\right| \F_t \right].
+\end{equation*}
+\end{itemize}
+\medskip
+For a call with constant $r$,
+\begin{equation*}
+    C(K, T) = e^{-rT}\, \E^{\Q}\!\left[(S_T - K)^+\right],
+\end{equation*}
+which is the starting point of the Dupire equation.
+\end{scriptsize}
+\end{frame}

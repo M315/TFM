@@ -1,0 +1,210 @@
+% ----------------------------------
+%   Calibration as an inverse problem (Chapter 7, theory)
+% ----------------------------------
+
+\begin{frame}
+\frametitle{Calibration. An ill-posed inverse problem}
+\begin{scriptsize}
+\textbf{Data}: quoted calls $C^*(K_i, T_j)$ on finitely many strikes and maturities.
+\textbf{Unknown}: the coefficient $\lvol$ of the forward equation \eqref{eq:dupire_forward}.
+\medskip
+
+Why not plug the quotes into the Dupire formula?
+\begin{itemize}
+\item The data are \textbf{noisy} and \textbf{sparse}, especially in maturity,
+and the formula needs $\partial_T C$ and $\partial_{KK} C$.
+\item Gamma $\partial_{KK} C$ sits in the denominator:
+far from the money it is small and $\lvol$ is barely determined by the prices.
+\item The map from $\lvol$ to prices is \textbf{smoothing}:
+very different volatilities produce almost the same prices,
+so its inverse is discontinuous and amplifies the noise.
+\end{itemize}
+\medskip
+We follow Egger and Engl and stabilize the inversion by \textbf{Tikhonov regularization}.
+\medskip
+
+Egger, H., Engl, H. W. (2005). \emph{Tikhonov regularization applied to the inverse problem of option pricing: convergence analysis and rates}. Inverse Problems.\\
+Engl, H. W., Hanke, M., Neubauer, A. (1996). \emph{Regularization of Inverse Problems}. Kluwer.
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Calibration. Log-moneyness formulation}
+\begin{scriptsize}
+With $y = \log(K/S_0)$, $\tau = T$, $u(y, \tau) = C/S_0$ and the diffusion coefficient
+\begin{equation*}
+    a(y,\tau) = \tfrac{1}{2}\lvol^2(T,K),
+\end{equation*}
+the operators $K\partial_K$ and $K^2\partial_{KK}$ have constant coefficients,
+\begin{equation*}
+    K\,\frac{\partial C}{\partial K} = S_0\,u_y,
+    \qquad
+    K^2\,\frac{\partial^2 C}{\partial K^2} = S_0\,(u_{yy} - u_y),
+\end{equation*}
+and the forward equation becomes, on $Q = (-M, M) \times (0, T]$,
+\begin{equation}\label{eq:forward_y}
+    u_\tau = a(y,\tau)\,(u_{yy} - u_y) - (r-q)\,u_y - q\,u,
+\end{equation}
+\begin{equation*}
+    u(y, 0) = (1 - e^y)^+,
+    \qquad u(-M, \tau) = \Psi_1(\tau), \quad u(M, \tau) = \Psi_2(\tau),
+\end{equation*}
+with the boundary values from Black-Scholes at $K = S_0 e^{\pm M}$
+($\Psi_1 \to e^{-q\tau}$, $\Psi_2 \to 0$ as $M \to \infty$).
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Calibration. Parameter-to-solution map}
+\begin{scriptsize}
+\begin{itemize}
+\item Admissible set, for a prior $a^*$ and bounds $0 < \underline{a} \leq \bar{a}$,
+\begin{equation*}
+    \mathcal{K}(a^*) := \bigl\{ a \in a^* + H^1(Q) : \underline{a} \le a \le \bar{a} \bigr\}.
+\end{equation*}
+$H^1$ is needed because $a$ enters the weak form through the flux,
+and its norm gives weak compactness of the sublevel sets.
+
+\item Parameter-to-solution map, $u(a)$ the solution of \eqref{eq:forward_y},
+\begin{equation*}
+    F(a) = u(a) - u(a_0), \qquad a_0 \text{ constant, } u(a_0) \text{ from Black-Scholes}.
+\end{equation*}
+\end{itemize}
+
+\begin{block}{Theorem (Egger and Engl, Thm.~2.1)}
+There exists $p^* > 2$ such that $F\colon \mathcal{K}(a^*) \to W_p^{2,1}(Q)$
+is continuous and compact for $2 \le p < p^*$, and weakly sequentially continuous.
+\end{block}
+
+\begin{itemize}
+\item This is the \textbf{source of the ill-posedness}:
+a compact operator between infinite dimensional spaces has no continuous inverse,
+small changes in prices may correspond to order one changes in $a$.
+\end{itemize}
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Calibration. Tikhonov functional}
+\begin{scriptsize}
+Assume $a^\dagger \in \mathcal{K}(a^*)$ reproduces the true prices $u^\dagger$
+and the observations satisfy $\|u^\delta - u^\dagger\|_{L^2(Q)} \le \delta$. We minimize
+\begin{equation*}
+    J^\beta(a) = \underbrace{\|u(a) - u^\delta\|^2_{L^2(Q)}}_{\text{data fit}}
+    + \beta\,\underbrace{\|a - a^*\|^2_{H^1(\Omega)}}_{\text{smoothness, prior}},
+    \qquad \Omega = (-M, M).
+\end{equation*}
+
+\begin{block}{Proposition (Egger and Engl, Props.~3.1 and 3.2)}
+For any $\beta > 0$ a minimizer $a^\delta_\beta$ exists.
+If $\delta \to 0$, $\beta(\delta) \to 0$ and $\delta^2/\beta(\delta) \to 0$,
+the minimizers have a subsequence converging in $H^1(\Omega)$,
+and every limit point is an \emph{$a^*$-minimum-norm} solution.
+\end{block}
+
+\begin{itemize}
+\item The prior $a^*$ carries the structural knowledge where the data are weak.
+\item With finitely many quotes the data are discrete:
+convergence to an $a^*$-minimum-norm solution holds, its uniqueness does not.
+\end{itemize}
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Calibration. Gradient by the adjoint method}
+\begin{scriptsize}
+\begin{itemize}
+\item The directional derivative needs the linearized solution $w = u'(a)[h]$,
+\begin{equation*}
+    \frac{d}{d\varepsilon}\|u(a+\varepsilon h) - u^\delta\|^2\Big|_{\varepsilon=0}
+    = 2\bigl(u(a) - u^\delta,\, w\bigr),
+\end{equation*}
+\begin{equation*}
+    -w_\tau + a(w_{yy} - w_y) - (r-q) w_y - q w = -h\,(u_{yy} - u_y),
+\end{equation*}
+one PDE solve per direction $h$, i.e.\ $n$ solves for $n$ degrees of freedom.
+
+\item Instead solve once the \textbf{adjoint} problem backward in $\tau$,
+\begin{equation*}
+    V_\tau + (aV)_{yy} + (aV)_y + (r-q)V_y - qV = 0,
+    \qquad V(y, T) = u(a)(y, T) - u^\delta(y),
+\end{equation*}
+with homogeneous Dirichlet conditions. Then
+\begin{equation*}
+    \langle \nabla J^\beta(a), h \rangle
+    = 2\int_0^{T}\!\!\int_{-M}^{M} h\,(u_{yy}-u_y)\,V\,dy\,d\tau
+      + 2\beta\int_{-M}^{M}\bigl[(a-a^*)h + \partial_y(a-a^*)\,\partial_y h\bigr]dy.
+\end{equation*}
+
+\item Cost: \textbf{one forward and one adjoint solve per iteration},
+independent of the number of unknowns.
+\item $V$ represents $F'(a)^*(F(a) - u^\delta)$, the object appearing in the source condition.
+\end{itemize}
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Calibration. Convergence rates}
+\begin{scriptsize}
+\begin{itemize}
+\item Under the \textbf{source condition}
+\begin{equation*}
+    a^* - a^\dagger = F'(a^\dagger)^*\,w, \qquad \|w\| \text{ small},
+\end{equation*}
+and the choice $\beta \sim \delta$ (Egger and Engl, Prop.~4.1),
+\begin{equation*}
+    \|a^\delta_\beta - a^\dagger\| = O(\sqrt{\delta}),
+    \qquad
+    \|u(a^\delta_\beta) - u^\delta\| = O(\delta).
+\end{equation*}
+
+\item For time independent $a = a(y)$ and one maturity, the condition is implied by
+smooth source functions $g$ with Gaussian decay in the wings
+\begin{equation*}
+    |g|,\ |\partial_y g|,\ |\partial_y^2 g| = O\bigl(e^{-B' y^2}\bigr), \qquad |y| \to \infty,
+\end{equation*}
+with an $H^2$ penalty (Thm.~4.1) or with observed digital prices $C_K$ (Thm.~4.2).
+
+\item \textbf{Interpretation}: $a^\dagger - a^*$ must be small and smooth in the wings,
+where the prices carry little information. The wings must come from the prior.
+\end{itemize}
+\medskip
+\textbf{Caveat}: we keep the $H^1$ penalty with price data only,
+and later calibrate a time dependent $a(y,\tau)$, both outside the rate theorems.
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Calibration. Discretization and minimization}
+\begin{scriptsize}
+\begin{itemize}
+\item \textbf{Space}: $P_1$ Lagrange finite elements on $[-M, M]$, with FEniCSx. Weak form, $v \in H^1_0$,
+\begin{equation*}
+    \frac{d}{d\tau}\!\int u\,v
+    = -\!\int a\,u_y\,v_y
+      -\!\int \partial_y a\,u_y\,v
+      -\!\int (a + r - q)\,u_y\,v
+      -\!\int q\,u\,v .
+\end{equation*}
+\item \textbf{Time}: implicit Euler, unconditionally stable for this parabolic operator.
+\item \textbf{Optimizer}: L-BFGS-B, which handles the bounds $\underline{a} \le a \le \bar a$.
+\item \textbf{Choice of $\beta$}: decreasing sequence $\beta_0 = 10^{2}\delta > \cdots > 10^{-3}\delta$,
+warm started, stopped by the Morozov discrepancy principle $\|u(a^\delta_\beta) - u^\delta\| \le 1.5\,\delta$.
+\end{itemize}
+
+\textbf{Gradient check.} Adjoint vs.\ linearized solve agree to $2.3\times10^{-15}$,
+and the Taylor remainder $R_1(t) = |J(a+th) - J(a) - t\langle\nabla J, h\rangle|$ is $O(t^2)$:
+\begin{center}
+\begin{tabular}{c c c c}
+\toprule
+$t$ & $R_0(t)$ & $R_1(t)$ & rate of $R_1$ \\
+\midrule
+$10^{-2}$ & $1.32\times10^{-6}$ & $5.13\times10^{-6}$ & - \\
+$10^{-3}$ & $3.28\times10^{-7}$ & $5.27\times10^{-8}$ & $1.99$ \\
+$10^{-4}$ & $3.76\times10^{-8}$ & $5.29\times10^{-10}$ & $2.00$ \\
+$10^{-5}$ & $3.80\times10^{-9}$ & $5.29\times10^{-12}$ & $2.00$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{scriptsize}
+\end{frame}

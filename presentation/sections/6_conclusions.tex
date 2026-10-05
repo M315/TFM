@@ -1,0 +1,54 @@
+% ----------------------------------
+%   Conclusions and references
+% ----------------------------------
+
+\begin{frame}
+\frametitle{Conclusions}
+\begin{scriptsize}
+\begin{itemize}
+\item We built the pricing theory from stochastic calculus, through Black-Scholes and arbitrage theory,
+up to the Dupire forward equation and its no-arbitrage conditions.
+\item Calibration of local volatility is an ill-posed inverse problem,
+and Tikhonov regularization with an adjoint gradient solves it at the cost of two PDE solves per iteration.
+\item We reproduced the examples of Egger and Engl:
+the data determine the volatility near the money, the prior determines the wings.
+\item We extended the framework to a time dependent coefficient and calibrated a full SPY surface,
+arbitrage-free by construction, with sub-percent reprice errors.
+\item The rule of two is confirmed empirically on the calibrated surface,
+and the model reprices a held-out maturity within $2\%$.
+\end{itemize}
+\medskip
+
+\textbf{Further work}
+\begin{itemize}
+\item Convergence results for the time dependent extension.
+\item Inverse problem formulations for random data, closer to market conditions.
+\end{itemize}
+\end{scriptsize}
+\end{frame}
+
+\frame
+{\frametitle
+{References}
+\scriptsize{
+\begin{enumerate}
+\item Bergomi, L. (2015). \emph{Stochastic Volatility Modeling}. CRC Press.
+\item Berestycki, H., Busca, J., Florent, I. (2002). \emph{Asymptotics and calibration of local volatility models}. Quantitative Finance.
+\item Bj\"ork, T. (2009). \emph{Arbitrage Theory in Continuous Time}. Oxford University Press.
+\item Black, F., Scholes, M. (1973). \emph{The Pricing of Options and Corporate Liabilities}. Journal of Political Economy.
+\item Breeden, D. T., Litzenberger, R. H. (1978). \emph{Prices of State-Contingent Claims Implicit in Option Prices}. Journal of Business.
+\item Derman, E., Miller, M. B., Park, D. (2016). \emph{The Volatility Smile}. Wiley.
+\item Dupire, B. (1994). \emph{Pricing with a Smile}. Risk.
+\item Egger, H., Engl, H. W. (2005). \emph{Tikhonov regularization applied to the inverse problem of option pricing: convergence analysis and rates}. Inverse Problems.
+\item Engl, H. W., Hanke, M., Neubauer, A. (1996). \emph{Regularization of Inverse Problems}. Kluwer.
+\item Merton, R. C. (1973). \emph{Theory of Rational Option Pricing}. Bell Journal of Economics and Management Science.
+\item Steele, J. M. (2010). \emph{Stochastic Calculus and Financial Applications}. Springer.
+\end{enumerate}
+}
+}
+
+\begin{frame}
+\begin{center}
+\Large Thank you
+\end{center}
+\end{frame}

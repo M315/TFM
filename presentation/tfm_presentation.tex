@@ -1,0 +1,51 @@
+\documentclass{beamer}
+
+%\usetheme{Madrid}
+%\setbeamercovered{dynamic}
+\usepackage{sansmathaccent}
+\usepackage{subcaption}
+\usepackage{xcolor,mathptmx,tikz,mathtools,booktabs}
+\usepackage{amsmath,amssymb}
+\usetikzlibrary{arrows,positioning}
+\pdfmapfile{+sansmathaccent.map}
+
+\graphicspath{{../TFM/figures/}}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\ivol}{\sigma_{\mathrm{iv}}}   % implied (Black-Scholes) volatility
+\newcommand{\lvol}{\sigma_{\mathrm{loc}}}  % local (Dupire) volatility
+
+\title{Calibration of Local Volatility Models}
+\subtitle{A Tikhonov regularization approach to the Dupire inverse problem}
+\author{Marc Jovani Bertran}
+\date{ }
+\institute{
+ \small
+ Tutor: Prof. Miguel Sama \\[6pt]
+
+ Facultad de Ciencias
+
+ Universidad Nacional de Educaci\'{o}n a Distancia (UNED) \\[6pt]
+
+ M\'aster Universitario en Matem\'aticas Avanzadas \\
+ Especialidad Matem\'aticas Aplicadas \\[6pt]
+
+ \includegraphics[width=1.6cm]{uned-logo.jpg}
+}
+
+\begin{document}
+\frame{\titlepage}
+
+\input{sections/0_outline}
+\input{sections/0_stochastic_calculus}
+\input{sections/1_black_scholes}
+\input{sections/2_arbitrage}
+\input{sections/3_dupire}
+\input{sections/4_calibration}
+\input{sections/5_numerics}
+\input{sections/6_conclusions}
+
+\end{document}

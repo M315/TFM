@@ -1,0 +1,90 @@
+% ----------------------------------
+%   Black-Scholes (Chapter 4)
+% ----------------------------------
+
+\begin{frame}
+\frametitle{Black-Scholes. Dynamic replication}
+\begin{scriptsize}
+\begin{itemize}
+\item Arbitrage-free market, constant rate $r$, continuous rebalancing.
+The underlying and the bond follow
+\begin{equation*}
+    dS_t = \mu S_t\, dt + \sigma S_t\, dW_t,
+    \qquad
+    d\beta_t = r \beta_t\, dt.
+\end{equation*}
+\item Replicating portfolio $V_t = a_t S_t + b_t \beta_t$ with $V_T = (S_T - K)^+$,
+and \textbf{self-financing}
+\begin{equation*}
+    dV_t = a_t\, dS_t + b_t\, d\beta_t .
+\end{equation*}
+\item Writing $V_t = f(t, S_t)$, applying It\^{o}'s formula and matching the $dW_t$ and $dt$ terms,
+\begin{equation*}
+    a_t = \frac{\partial f}{\partial S} \quad \text{(delta hedge)},
+\end{equation*}
+which gives the \textbf{Black-Scholes PDE}
+\begin{equation*}
+    \frac{\partial f}{\partial t} =
+        r f
+        - r S \frac{\partial f}{\partial S}
+        - \frac{1}{2} \sigma^2 S^2 \frac{\partial^2 f}{\partial S^2},
+    \qquad f(T, S) = (S - K)^+ .
+\end{equation*}
+\item The drift $\mu$ does not appear: the price does not depend on the investors' view of the asset.
+\end{itemize}
+\smallskip
+Black, F., Scholes, M. (1973). \emph{The Pricing of Options and Corporate Liabilities}. J. Political Economy.\\
+Steele, J. M. (2010). \emph{Stochastic Calculus and Financial Applications}. Springer.
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Black-Scholes. Pricing formula}
+\begin{scriptsize}
+\begin{itemize}
+\item With $\tau = T - t$, log-moneyness $x = \ln(S/K)$ and $u = e^{\alpha x + \beta \tau} v$
+for suitable $\alpha, \beta$, the BS PDE reduces to the \textbf{heat equation}
+\begin{equation*}
+    v_\tau = \tfrac{1}{2} \sigma^2 v_{xx},
+    \qquad v(x, 0) = K e^{-\alpha x} (e^x - 1)^+ .
+\end{equation*}
+\item Convolving with the heat kernel and completing the square gives the \textbf{Black-Scholes formula}
+\begin{equation*}
+    f(t, S) = S\, \Phi(d_1) - K e^{-r (T - t)} \Phi(d_2),
+\end{equation*}
+\begin{equation*}
+    d_{1,2} = \frac{\ln(S/K) + \left( r \pm \frac{1}{2} \sigma^2 \right) (T - t)}{\sigma \sqrt{T - t}} .
+\end{equation*}
+\item \textbf{Implied volatility}: the unique $\ivol(K,T) > 0$ such that
+$C_{\mathrm{BS}}(\ivol) = C^{\mathrm{mkt}}$.
+Uniqueness follows from the vega
+\begin{equation*}
+    \mathcal{V} = \frac{\partial C_{\mathrm{BS}}}{\partial \sigma} = S \sqrt{T - t}\, \phi(d_1) > 0,
+\end{equation*}
+and it is computed with Newton's method
+$\sigma^{(n+1)} = \sigma^{(n)} - \bigl(C_{\mathrm{BS}}(\sigma^{(n)}) - C^{\mathrm{mkt}}\bigr) / \mathcal{V}(\sigma^{(n)})$.
+\end{itemize}
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Black-Scholes. The implied volatility surface}
+\begin{scriptsize}
+If Black-Scholes described the market, $\ivol(K,T)$ would be flat.
+SPY quotes on 30 April 2026 show a \textbf{negative skew} in strike and a \textbf{term structure} in maturity.
+\end{scriptsize}
+\begin{figure}[htb!]
+    \centering
+    \begin{subfigure}[b]{0.55\linewidth}\centering
+    \includegraphics[width=\linewidth]{iv_composite}
+    \caption{\scriptsize Implied volatility surface.}
+    \end{subfigure}%
+    \begin{subfigure}[b]{0.45\linewidth}\centering
+    \includegraphics[width=\linewidth]{iv_smile}
+    \caption{\scriptsize Smile at $T \approx 0.21$.}
+    \end{subfigure}
+\end{figure}
+\begin{scriptsize}
+Constant $\sigma$ is inconsistent with the market, which motivates the local volatility model.
+\end{scriptsize}
+\end{frame}
