@@ -7,9 +7,23 @@
 *.blg
 *.synctex*
 *.out
+*.toc
+*.lof
+*.lot
+*.idx
 
 *.pyc
 __pycache__/
 /references/*
 
 .*/*
+
+# Throwaway calibration experiment outputs (final figures live in TFM/figures/).
+scripts/local_vol_egger/egger_ex3*.png
+scripts/local_vol_egger/egger_ex4*.png
+scripts/local_vol_egger/egger_ex4*.npz
+scripts/local_vol_egger/egger_ex5*.png
+scripts/local_vol_egger/egger_ex6*.png
+scripts/local_vol_egger/egger_ex6*.npz
+scripts/local_vol_egger/egger_ex7*.png
+scripts/local_vol_egger/egger_example3_market*.png
